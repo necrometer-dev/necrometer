@@ -1,0 +1,30 @@
+[package]
+name = "necrometer"
+version = "0.1.0"
+edition = "2021"
+description = "The Necrometer — measures how dead your GitHub repos are. Embeddable necrosis gauges for READMEs."
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1", features = ["full", "signal"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = "0.8"
+maud = "0.26"
+chrono = { version = "0.4", features = ["serde"] }
+mimalloc = "0.1.52"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
