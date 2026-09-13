@@ -12,7 +12,9 @@ use reqwest::header::{self, HeaderMap, HeaderValue};
 #[cfg(not(target_arch = "wasm32"))]
 use reqwest::{Client, StatusCode};
 
+#[cfg(not(target_arch = "wasm32"))]
 const API: &str = "https://api.github.com";
+#[cfg(not(target_arch = "wasm32"))]
 const MAX_PAGES: u32 = 10;
 
 #[derive(Debug, Clone, Deserialize)]

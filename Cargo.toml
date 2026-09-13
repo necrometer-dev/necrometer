@@ -1,6 +1,6 @@
 [package]
 name = "necrometer"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "The Necrometer — measures how dead your GitHub repos are. Embeddable necrosis gauges for READMEs."
 license = "MIT"
