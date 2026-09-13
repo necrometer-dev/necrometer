@@ -1,0 +1,12 @@
+# Zero-configuration compose: image + port only.
+# GITHUB_TOKEN is picked up from the environment or an adjacent .env file —
+# optional, but without it the GitHub API limit is 60 req/hr.
+services:
+  necrometer:
+    image: ghcr.io/necrometer-dev/necrometer:latest
+    container_name: necrometer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
