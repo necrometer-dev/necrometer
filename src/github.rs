@@ -71,17 +71,20 @@ impl GitHub {
     }
 
     pub async fn user_repos(&self, user: &str) -> Result<Vec<Repo>, FetchError> {
-        self.get_all(&format!("{API}/users/{user}/repos"), user).await
+        self.get_all(&format!("{API}/users/{user}/repos?type=owner"), user)
+            .await
     }
 
     pub async fn org_repos(&self, org: &str) -> Result<Vec<Repo>, FetchError> {
-        self.get_all(&format!("{API}/orgs/{org}/repos"), org).await
+        // type=all is required here to surface private/internal repos to org tokens
+        self.get_all(&format!("{API}/orgs/{org}/repos?type=all"), org)
+            .await
     }
 
     async fn get_all(&self, base: &str, subject: &str) -> Result<Vec<Repo>, FetchError> {
         let mut out = Vec::new();
         for page in 1..=MAX_PAGES {
-            let url = format!("{base}?per_page=100&type=all&page={page}");
+            let url = format!("{base}&per_page=100&page={page}");
             let resp = self
                 .client
                 .get(&url)
