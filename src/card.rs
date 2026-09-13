@@ -1,10 +1,15 @@
-//! SVG necrometer gauge card renderer.
+//! SVG necrometer gauge card renderer — the cute-death pass.
+//! Gauge + stats + graveyard strip + skull buddy mascot. Single source of
+//! truth: compiled natively for the CLI/service and to wasm for the site.
 
-use crate::metrics::Reading;
+use crate::metrics::{Fate, Reading};
 
 const W: i32 = 495;
 const H: i32 = 195;
 const FONT: &str = "-apple-system,'Segoe UI',Roboto,Ubuntu,Cantarell,'Noto Sans',Helvetica,Arial,sans-serif";
+/// Cute display font for titles/flavor — <img> SVGs can't load webfonts, so
+/// lean on the cute system fonts (Comic Sans on win, Chalkboard on mac).
+const FONT_CUTE: &str = "'Comic Sans MS','Chalkboard SE','Segoe Print',-apple-system,'Segoe UI',Roboto,Ubuntu,Cantarell,'Noto Sans',Helvetica,Arial,sans-serif";
 
 struct Palette {
     bg: &'static str,
@@ -18,7 +23,7 @@ struct Palette {
 
 pub fn render(reading: &Reading) -> String {
     let p = palette(reading.index);
-    let mut s = String::with_capacity(4096);
+    let mut s = String::with_capacity(8192);
 
     s.push_str(&format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" font-family="{FONT}">"#
@@ -30,6 +35,8 @@ pub fn render(reading: &Reading) -> String {
 
     s.push_str(&gauge(reading.index, &p));
     s.push_str(&stats(reading, &p));
+    s.push_str(&graveyard(reading, &p));
+    s.push_str(&skull_buddy(reading.index, &p));
     s.push_str(&easter_egg(reading.index));
 
     s.push_str(&format!(
@@ -108,17 +115,21 @@ fn gauge(index: u8, p: &Palette) -> String {
         p.dim
     ));
 
-    // needle: index 0 -> far left (vital), 100 -> far right (necrotic)
+    // needle: swings in from the alive end on load — SMIL, works in <img>
     let theta = 180.0 - index as f64 * 1.8;
+    let swing = (180.0 - theta).max(30.0); // at least a little drama
     let tip = pts(cx, cy, r - 12.0, theta);
     let base_l = pts(cx, cy, 4.0, theta + 90.0);
     let base_r = pts(cx, cy, 4.0, theta - 90.0);
+    g.push_str(&format!(
+        r#"<g><animateTransform attributeName="transform" type="rotate" values="-{swing:.1} {cx} {cy};4 {cx} {cy};0 {cx} {cy}" keyTimes="0;0.8;1" dur="1.1s" fill="freeze"/>"#
+    ));
     g.push_str(&format!(
         r#"<polygon points="{tip} {base_l} {base_r}" fill="{}"/>"#,
         p.needle
     ));
     g.push_str(&format!(
-        r#"<circle cx="{cx}" cy="{cy}" r="5.5" fill="{}" stroke="{}" stroke-width="1.5"/>"#,
+        r#"<circle cx="{cx}" cy="{cy}" r="5.5" fill="{}" stroke="{}" stroke-width="1.5"/></g>"#,
         p.bg, p.needle
     ));
 
@@ -135,32 +146,37 @@ fn stats(reading: &Reading, p: &Palette) -> String {
     let x = 200.0;
 
     s.push_str(&format!(
-        r#"<text x="{x}" y="32" font-size="15" font-weight="600" fill="{}">{}</text>"#,
+        r#"<text x="{x}" y="32" font-size="15" font-weight="600" fill="{}" font-family="{FONT_CUTE}">{}</text>"#,
         p.text,
         esc(&format!("@{}", reading.subject))
     ));
 
     if reading.total == 0 {
         s.push_str(&format!(
-            r#"<text x="{x}" y="60" font-size="13" fill="{}">no repos — nothing to bury</text>"#,
+            r#"<text x="{x}" y="60" font-size="13" fill="{}" font-family="{FONT_CUTE}">no repos — nothing to bury</text>"#,
             p.dim
         ));
         return s;
     }
 
     s.push_str(&format!(
-        r#"<text x="{x}" y="72" font-size="34" font-weight="700" fill="{}">{}%</text>"#,
+        r#"<text x="{x}" y="70" font-size="34" font-weight="700" fill="{}">{}%</text>"#,
         p.accent, reading.index
     ));
     s.push_str(&format!(
-        r#"<text x="{}" y="72" font-size="12" fill="{}">necrotic</text>"#,
+        r#"<text x="{}" y="70" font-size="12" fill="{}">necrotic</text>"#,
         x + 78.0,
         p.dim
     ));
     s.push_str(&format!(
-        r#"<text x="{x}" y="94" font-size="13" font-style="italic" fill="{}">{}</text>"#,
+        r#"<text x="{x}" y="90" font-size="13" font-weight="600" fill="{}" font-family="{FONT_CUTE}">{}</text>"#,
         p.accent,
         esc(&reading.title)
+    ));
+    s.push_str(&format!(
+        r#"<text x="{x}" y="105" font-size="10.5" font-style="italic" fill="{}" font-family="{FONT_CUTE}">{}</text>"#,
+        p.dim,
+        esc(&reading.flavor)
     ));
 
     let fate_line = [
@@ -176,48 +192,257 @@ fn stats(reading: &Reading, p: &Palette) -> String {
     .collect::<Vec<_>>()
     .join(" · ");
     s.push_str(&format!(
-        r#"<text x="{x}" y="122" font-size="11" fill="{}">{}</text>"#,
+        r#"<text x="{x}" y="126" font-size="11" fill="{}">{}</text>"#,
         p.text,
         esc(&fate_line)
     ));
 
-    let mut y = 142.0;
+    let mut y = 143.0;
     if reading.stars_stranded > 0 {
         s.push_str(&format!(
             r#"<text x="{x}" y="{y}" font-size="11" fill="{}">{} stars stranded on dead repos</text>"#,
             p.dim, reading.stars_stranded
         ));
-        y += 16.0;
+        y += 15.0;
     }
     if let Some((name, days)) = &reading.oldest_corpse {
+        let name = if name.chars().count() > 20 {
+            format!("{}…", name.chars().take(19).collect::<String>())
+        } else {
+            name.clone()
+        };
         s.push_str(&format!(
             r#"<text x="{x}" y="{y}" font-size="11" fill="{}">oldest corpse: {} ({}d)</text>"#,
             p.dim,
-            esc(name),
+            esc(&name),
             days
         ));
-        y += 16.0;
+        y += 15.0;
+    }
+    let mut bits = Vec::new();
+    if reading.stillborn > 0 {
+        bits.push(format!("{} stillborn", reading.stillborn));
     }
     if let Some(d) = reading.days_since_any_push {
-        let msg = if d == 0 {
+        bits.push(if d == 0 {
             "signs of life today".to_string()
         } else {
             format!("last sign of life: {d}d ago")
-        };
+        });
+    }
+    if !bits.is_empty() {
         s.push_str(&format!(
             r#"<text x="{x}" y="{y}" font-size="11" fill="{}">{}</text>"#,
-            p.dim, msg
+            p.dim,
+            esc(&bits.join(" · "))
         ));
     }
-    if reading.stillborn > 0 {
+
+    s.push_str(&ekg(reading.index, p));
+    s
+}
+
+/// Heartbeat strip under the stats — spiky when healthy, flatlines when dead.
+/// Ends before the watermark (x≈412-485). Send-off: heart healthy, skull dead.
+fn ekg(index: u8, p: &Palette) -> String {
+    let (x0, w, base) = (200.0_f64, 200.0_f64, 184.0_f64);
+    let amp = (1.0 - index as f64 / 110.0).max(0.0);
+    let beats = match index {
+        0..=29 => 4,
+        30..=59 => 3,
+        60..=79 => 2,
+        80..=89 => 1,
+        _ => 0,
+    };
+    let mut d = format!("M {x0},{base}");
+    let mut x = x0;
+    for _ in 0..beats {
+        let a = 12.0 * amp;
+        x += w / 24.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base - a * 0.4)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base - a)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base + a * 0.5)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+        x += w / 16.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+    }
+    while x < x0 + w {
+        x += w / 12.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+    }
+    let color = if index >= 80 { "#f85149" } else { &p.accent };
+    let mut s = format!(
+        r#"<path d="{d}" stroke="{color}" stroke-width="1.4" fill="none" stroke-dasharray="900" stroke-dashoffset="0" opacity="0.85"><animate attributeName="stroke-dashoffset" from="900" to="0" dur="1.6s" fill="freeze"/></path>"#
+    );
+    if index >= 80 {
         s.push_str(&format!(
-            r#"<text x="{x}" y="{}" font-size="11" fill="{}">{} stillborn repos</text>"#,
-            y + 16.0,
-            p.dim,
-            reading.stillborn
+            r#"<text x="{}" y="{}" font-size="8" fill="{color}">☠</text>"#,
+            fmt(x0 + w + 1.0),
+            fmt(base + 3.0)
+        ));
+    } else if index < 15 {
+        s.push_str(&format!(
+            r##"<g transform="translate({},{}) scale(0.85)"><path d="M5,8.5 C2,6 0,4.4 0,2.8 C0,1.2 1.2,0 2.6,0 C3.8,0 4.6,0.7 5,1.5 C5.4,0.7 6.2,0 7.4,0 C8.8,0 10,1.2 10,2.8 C10,4.4 8,6 5,8.5 Z" fill="#f778ba"><animate attributeName="opacity" values="1;0.5;1" dur="1.2s" repeatCount="indefinite"/></path></g>"##,
+            fmt(x0 + w - 4.0),
+            fmt(base - 7.0)
+        ));
+    } else {
+        s.push_str(&format!(
+            r#"<circle cx="{}" cy="{}" r="1.6" fill="{}"/>"#,
+            fmt(x0 + w),
+            fmt(base),
+            p.dim
         ));
     }
     s
+}
+
+/// The mascot: a little skull buddy whose face mirrors the reading.
+/// happy = halo + blush + ^^ eyes · ok = dot eyes · sad = frown · dead = x_x + crack
+fn skull_buddy(index: u8, p: &Palette) -> String {
+    let (sx, sy) = (450.0_f64, 42.0_f64);
+    let face = match index {
+        0..=14 => "happy",
+        15..=59 => "ok",
+        60..=79 => "sad",
+        _ => "dead",
+    };
+    let mut s = String::new();
+    if face == "happy" {
+        s.push_str(&format!(
+            r##"<ellipse cx="{sx}" cy="{}" rx="6" ry="2" fill="none" stroke="#ffd866" stroke-width="1.4"/>"##,
+            fmt(sy - 16.0)
+        ));
+    }
+    s.push_str(&format!(
+        r##"<path d="M {},{} A 10.5 10.5 0 1 1 {},{} L {},{} Q {},{} {},{} L {},{} Q {},{} {},{} Z" fill="#e8e6df"/>"##,
+        fmt(sx - 10.5), fmt(sy + 3.0),
+        fmt(sx + 10.5), fmt(sy + 3.0),
+        fmt(sx + 10.5), fmt(sy + 6.0),
+        fmt(sx + 10.5), fmt(sy + 10.5), fmt(sx + 6.5), fmt(sy + 10.5),
+        fmt(sx - 6.5), fmt(sy + 10.5),
+        fmt(sx - 10.5), fmt(sy + 10.5), fmt(sx - 10.5), fmt(sy + 6.0),
+    ));
+    s.push_str(&format!(
+        r#"<path d="M {},{} v -3 M {},{} v -3 M {},{} v -3" stroke="{}" stroke-width="1"/>"#,
+        fmt(sx - 3.5), fmt(sy + 10.5),
+        fmt(sx), fmt(sy + 10.5),
+        fmt(sx + 3.5), fmt(sy + 10.5),
+        p.bg
+    ));
+    let ey = sy - 0.5;
+    let eye = |ex: f64| match face {
+        "happy" => format!(
+            r#"<path d="M {},{} Q {},{} {},{} " stroke="{}" stroke-width="1.5" fill="none" stroke-linecap="round"/>"#,
+            fmt(ex - 2.4), fmt(ey + 1.0), fmt(ex), fmt(ey - 2.2), fmt(ex + 2.4), fmt(ey + 1.0), p.bg
+        ),
+        "dead" => format!(
+            r#"<path d="M {},{} l 4,4 M {},{} l -4,4" stroke="{}" stroke-width="1.3" stroke-linecap="round"/>"#,
+            fmt(ex - 2.0), fmt(ey - 2.0), fmt(ex + 2.0), fmt(ey - 2.0), p.bg
+        ),
+        _ => format!(r#"<circle cx="{}" cy="{}" r="2.3" fill="{}"/>"#, fmt(ex), fmt(ey), p.bg),
+    };
+    s.push_str(&eye(sx - 4.0));
+    s.push_str(&eye(sx + 4.0));
+    s.push_str(&format!(
+        r#"<path d="M {},{} l -1.4,-2.2 l 2.8,0 Z" fill="{}"/>"#,
+        fmt(sx), fmt(sy + 4.5), p.bg
+    ));
+    if face == "sad" {
+        s.push_str(&format!(
+            r#"<path d="M {},{} Q {},{} {},{}" stroke="{}" stroke-width="1" fill="none"/>"#,
+            fmt(sx - 2.5), fmt(sy + 8.4), fmt(sx), fmt(sy + 6.8), fmt(sx + 2.5), fmt(sy + 8.4), p.bg
+        ));
+    }
+    if face == "happy" {
+        s.push_str(&format!(
+            r##"<ellipse cx="{}" cy="{}" rx="1.8" ry="1.1" fill="#f778ba" opacity="0.7"/><ellipse cx="{}" cy="{}" rx="1.8" ry="1.1" fill="#f778ba" opacity="0.7"/>"##,
+            fmt(sx - 6.8), fmt(sy + 4.0), fmt(sx + 6.8), fmt(sy + 4.0)
+        ));
+    }
+    if face == "dead" {
+        s.push_str(&format!(
+            r##"<path d="M {},{} l 3,3.5 l -1.8,2.5" stroke="#9a978c" stroke-width="0.9" fill="none"/>"##,
+            fmt(sx - 4.0), fmt(sy - 8.5)
+        ));
+    }
+    format!("<g>{s}</g>")
+}
+
+/// Tiny graveyard under the gauge — a stone per corpse (half-size for
+/// stillborn, the baby graves). All alive? Flowers grow instead.
+fn graveyard(reading: &Reading, p: &Palette) -> String {
+    let gy = 180.0_f64;
+    let mut s = format!(
+        r#"<line x1="24" y1="{}" x2="166" y2="{}" stroke="{}" stroke-width="1"/>"#,
+        fmt(gy), fmt(gy), p.border
+    );
+    let mut dead: Vec<&crate::metrics::Corpse> = reading
+        .entries
+        .iter()
+        .filter(|e| e.fate != Fate::Alive)
+        .collect();
+    dead.sort_by(|a, b| {
+        b.stillborn
+            .cmp(&a.stillborn)
+            .then(b.days_idle.cmp(&a.days_idle))
+    });
+    if dead.is_empty() {
+        for i in 0..3 {
+            let fx = 42.0 + i as f64 * 30.0;
+            s.push_str(&format!(
+                r##"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#3fb950" stroke-width="1.2"/>"##,
+                fmt(fx), fmt(gy), fmt(fx), fmt(gy - 7.0)
+            ));
+            for k in 0..5 {
+                let (px, py) = pt(fx, gy - 9.5, 2.4, k as f64 * 72.0 + 90.0);
+                let color = if i % 2 == 1 { "#f778ba" } else { "#ffd866" };
+                s.push_str(&format!(
+                    r##"<circle cx="{}" cy="{}" r="1.7" fill="{color}"/>"##,
+                    fmt(px), fmt(py)
+                ));
+            }
+            s.push_str(&format!(
+                r##"<circle cx="{}" cy="{}" r="1.4" fill="#e6edf3"/>"##,
+                fmt(fx), fmt(gy - 9.5)
+            ));
+        }
+        return format!("<g>{s}</g>");
+    }
+    for (i, e) in dead.iter().take(6).enumerate() {
+        let (w, h) = if e.stillborn { (8.0, 7.0) } else { (12.0, 11.0) };
+        let x = 28.0 + i as f64 * 22.0;
+        let top = gy - h;
+        s.push_str(&format!(
+            r##"<path d="M {},{} L {},{} A {} {} 0 0 1 {},{} L {},{} Z" fill="#565c66"/>"##,
+            fmt(x), fmt(gy),
+            fmt(x), fmt(top + w / 2.0),
+            w / 2.0, w / 2.0,
+            fmt(x + w), fmt(top + w / 2.0),
+            fmt(x + w), fmt(gy),
+        ));
+        s.push_str(&format!(
+            r#"<path d="M {},{} h 3.6 M {},{} v 3.6" stroke="{}" stroke-width="0.9"/>"#,
+            fmt(x + w / 2.0 - 1.8), fmt(top + w / 2.0 + 1.2),
+            fmt(x + w / 2.0), fmt(top + w / 2.0 - 0.6),
+            p.bg
+        ));
+    }
+    if dead.len() > 6 {
+        s.push_str(&format!(
+            r#"<text x="{}" y="{}" font-size="8" fill="{}">+{}</text>"#,
+            fmt(28.0 + 6.0 * 22.0 - 6.0),
+            fmt(gy - 2.0),
+            p.dim,
+            dead.len() - 6
+        ));
+    }
+    format!("<g>{s}</g>")
 }
 
 fn easter_egg(index: u8) -> String {
@@ -239,11 +464,14 @@ fn easter_egg(index: u8) -> String {
         }
         e
     } else if index >= 80 {
-        // cracks across the dial + cobweb in the corner
+        // cracks across the dial + cobweb in the corner + its little spider
         let mut e = String::new();
         e.push_str(r##"<polyline points="60,75 72,95 66,110 80,128" stroke="#3a3f45" stroke-width="1.5" fill="none"/>"##);
         e.push_str(r##"<polyline points="120,70 112,92 124,105 115,126" stroke="#3a3f45" stroke-width="1.2" fill="none"/>"##);
         e.push_str(r##"<path d="M 470,10 Q 480,20 488,12 M 470,10 Q 478,28 470,36 M 470,10 L 488,36 M 470,10 A 24 24 0 0 1 488,36" stroke="#3a3f45" stroke-width="1" fill="none"/>"##);
+        e.push_str(r##"<line x1="479" y1="24" x2="479" y2="40" stroke="#4a5058" stroke-width="0.8"/>"##);
+        e.push_str(r##"<circle cx="479" cy="42" r="2.2" fill="#4a5058"/>"##);
+        e.push_str(r##"<path d="M 477,41 l -2.5,-2 M 477,43 l -2.5,2 M 481,41 l 2.5,-2 M 481,43 l 2.5,2" stroke="#4a5058" stroke-width="0.8" fill="none"/>"##);
         e
     } else {
         String::new()

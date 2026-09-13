@@ -4,7 +4,10 @@ use chrono::{DateTime, Utc};
 
 use crate::github::Repo;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Fate {
     Alive,
     Cooling,
@@ -35,21 +38,30 @@ impl Fate {
     }
 }
 
+/// One repo's vital record — kept for all repos, alive or dead (the
+/// graveyard strip and lifelines need the living ones too).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Corpse {
     pub name: String,
     pub url: String,
+    pub created_at: DateTime<Utc>,
+    pub last_activity: DateTime<Utc>,
     pub days_idle: u32,
     pub stars: u64,
     pub fate: Fate,
     pub stillborn: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Reading {
     pub subject: String,
     pub kind: SubjectKind,
     /// Necrosis index, 0..=100. 0 = everything alive, 100 = full graveyard.
     pub index: u8,
     pub title: String,
+    pub flavor: String,
     /// Counts by fate, in enum order.
     pub counts: [u32; 5],
     pub total: u32,
@@ -58,10 +70,12 @@ pub struct Reading {
     pub stillborn: u32,
     pub days_since_any_push: Option<u32>,
     pub low_sample: bool,
-    pub corpses: Vec<Corpse>,
+    /// All owned non-fork repos, every fate.
+    pub entries: Vec<Corpse>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SubjectKind {
     User,
     Org,
@@ -82,7 +96,7 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
     let total = owned.len() as u32;
 
     let mut counts = [0u32; 5];
-    let mut corpses = Vec::new();
+    let mut entries = Vec::new();
     let mut weight_sum = 0.0;
     let mut stars_stranded = 0u64;
     let mut stillborn = 0u32;
@@ -98,27 +112,32 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
             last_push = Some(last_activity);
         }
 
+        let days_idle = (now - last_activity).num_days().max(0) as u32;
+        let born_dead = repo.pushed_at.is_none()
+            || (last_activity - repo.created_at).num_hours() <= 24;
         if fate != Fate::Alive {
             stars_stranded += repo.stargazers_count;
-            let days_idle = (now - last_activity).num_days().max(0) as u32;
-            let born_dead = repo.pushed_at.is_none()
-                || (last_activity - repo.created_at).num_hours() <= 24;
             if born_dead {
                 stillborn += 1;
             }
-            corpses.push(Corpse {
-                name: repo.name.clone(),
-                url: repo.html_url.clone(),
-                days_idle,
-                stars: repo.stargazers_count,
-                fate,
-                stillborn: born_dead,
-            });
         }
+        entries.push(Corpse {
+            name: repo.name.clone(),
+            url: repo.html_url.clone(),
+            created_at: repo.created_at,
+            last_activity,
+            days_idle,
+            stars: repo.stargazers_count,
+            fate,
+            stillborn: born_dead,
+        });
     }
 
-    corpses.sort_by(|a, b| b.days_idle.cmp(&a.days_idle));
-    let oldest_corpse = corpses.first().map(|c| (c.name.clone(), c.days_idle));
+    let oldest_corpse = entries
+        .iter()
+        .filter(|c| c.fate != Fate::Alive)
+        .max_by_key(|c| c.days_idle)
+        .map(|c| (c.name.clone(), c.days_idle));
 
     let low_sample = total < 3;
     let index = if total == 0 {
@@ -127,13 +146,12 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
         ((weight_sum / total as f64) * 100.0).round() as u8
     };
 
-    let title = title_for(index, total);
-
     Reading {
         subject: subject.to_string(),
         kind,
         index,
-        title,
+        title: title_for(index, total),
+        flavor: flavor_for(index, total),
         counts,
         total,
         stars_stranded,
@@ -141,7 +159,7 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
         stillborn,
         days_since_any_push: last_push.map(|p| (now - p).num_days().max(0) as u32),
         low_sample,
-        corpses,
+        entries,
     }
 }
 
@@ -171,6 +189,23 @@ fn title_for(index: u8, total: u32) -> String {
         35..=59 => "Serial Starter",
         60..=79 => "Graveyard Keeper",
         _ => "Repo Necromancer",
+    }
+    .into()
+}
+
+fn flavor_for(index: u8, total: u32) -> String {
+    if total == 0 {
+        return "no repos. no pulse. nothing.".into();
+    }
+    if total < 3 {
+        return "not enough bodies to judge".into();
+    }
+    match index {
+        0..=14 => "nothing dies here. suspicious.",
+        15..=34 => "a few corpses, like everyone",
+        35..=59 => "starts things. finishes? unclear.",
+        60..=79 => "more graves than gardens",
+        _ => "not a profile — a cemetery",
     }
     .into()
 }

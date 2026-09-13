@@ -96,10 +96,8 @@ async fn reading_for(
         }
     }
 
-    let repos: Vec<Repo> = match kind {
-        SubjectKind::User => st.gh.user_repos(name).await?,
-        SubjectKind::Org => st.gh.org_repos(name).await?,
-    };
+    // resolve_repos auto-detects org vs user vs the token's own account.
+    let repos: Vec<Repo> = st.gh.resolve_repos(name).await?;
     let reading = Arc::new(analyze(name, kind, &repos));
     st.cache
         .write()
@@ -180,11 +178,12 @@ fn subject_page(r: &Reading) -> Markup {
                 @if r.stillborn > 0 { " · " (r.stillborn) " stillborn" }
             }
         }
-        @if !r.corpses.is_empty() {
+        @let corpses: Vec<_> = r.entries.iter().filter(|c| c.fate != crate::metrics::Fate::Alive).collect();
+        @if !corpses.is_empty() {
             h2 { "the graveyard" }
             table {
                 tr { th { "repo" } th { "idle" } th { "stars" } th { "fate" } }
-                @for c in &r.corpses {
+                @for c in &corpses {
                     tr class=(format!("fate-{}", c.fate.label())) {
                         td { a href=(c.url) { (c.name) }
                             @if c.stillborn { span class="stillborn" { " stillborn" } } }
