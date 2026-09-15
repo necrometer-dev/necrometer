@@ -20,9 +20,9 @@ COPY --from=planner /usr/src/necrometer/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json --target x86_64-unknown-linux-musl
 COPY . .
 # Reproducible: SOURCE_DATE_EPOCH is honored for filesystem timestamps.
-RUN cargo build --release --target x86_64-unknown-linux-musl --bin necrometer \
- && cp target/x86_64-unknown-linux-musl/release/necrometer /tmp/necrometer \
- && strip /tmp/necrometer
+RUN cargo build --release --target x86_64-unknown-linux-musl --bin seance \
+ && cp target/x86_64-unknown-linux-musl/release/seance /tmp/seance \
+ && strip /tmp/seance
 
 # Stage 2: Alpine Linux runtime.
 # Pinned by digest. Replace after running:
@@ -37,9 +37,9 @@ RUN apk add --no-cache \
     && mkdir -p /app
 
 WORKDIR /app
-COPY --from=builder /tmp/necrometer /usr/local/bin/necrometer
+COPY --from=builder /tmp/seance /usr/local/bin/seance
 COPY container/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod 0755 /usr/local/bin/entrypoint.sh /usr/local/bin/necrometer
+RUN chmod 0755 /usr/local/bin/entrypoint.sh /usr/local/bin/seance
 
 ENV RUST_LOG=info \
     TZ=UTC \

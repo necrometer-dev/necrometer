@@ -12,4 +12,4 @@ UMASK=${UMASK:-022}
 
 umask "$UMASK"
 
-exec su-exec "$PUID:$PGID" /usr/local/bin/necrometer "$@"
+exec su-exec "$PUID:$PGID" /usr/local/bin/seance "$@"
