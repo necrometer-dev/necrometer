@@ -48,6 +48,7 @@ jobs:
             - `pkg/seance.js`
             - `pkg/seance.d.ts`
             - `pkg/seance_bg.wasm.d.ts`
+            - `pkg/snippets/seance-*/inlineN.js` (wasm-bindgen inline JS)
 
             Review the diff, then merge.
           add-paths: |
@@ -55,4 +56,5 @@ jobs:
             pkg/seance.js
             pkg/seance.d.ts
             pkg/seance_bg.wasm.d.ts
+            pkg/snippets
           commit-message: "wasm: rebuild from seance @ ${{ github.sha }}"
