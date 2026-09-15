@@ -7,6 +7,8 @@ on:
       - 'src/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - '.github/workflows/wasm.yml'
+      - 'ci/**'
   workflow_dispatch:
 
 permissions:
@@ -33,7 +35,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: wasm-pack build --release --target web --out-dir pkg
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seance-wasm
+          path: pkg
+
+      # Opening a PR in necrometer-dev.github.io needs a PAT that can
+      # write that repo (GITHUB_TOKEN cannot). Skip — don't fail the
+      # build — when NECRO_TOKEN is unset.
       - name: Open PR into necrometer-dev.github.io
+        if: ${{ secrets.NECRO_TOKEN != '' }}
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.NECRO_TOKEN }}

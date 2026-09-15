@@ -24,6 +24,8 @@ jobs:
       - run: cargo audit --deny warnings
       # cargo-deny: license, ban-list, source restrictions, duplicate
       # versions. Catches a typo'd registry or a yanked transitive.
-      - uses: EmbarkStudios/cargo-deny-action@v1
-        with:
-          arguments: --deny warnings
+      # Installed the same way as cargo-audit — cargo-deny-action v1
+      # prepends `arguments` before `check`, and current cargo-deny
+      # rejects `--deny` as a global flag (`check --deny` is the form).
+      - uses: taiki-e/install-action@cargo-deny
+      - run: cargo deny check --deny warnings
