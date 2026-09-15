@@ -8,14 +8,18 @@ use crate::github::parse_repos;
 use crate::metrics::{analyze, Fate, Reading, SubjectKind};
 
 /// `repos_json`: raw JSON array from `api.github.com/.../repos`.
-/// Returns the reading as JSON.
+/// `kind_str`: `"user"` or `"org"`. Returns the reading as JSON.
 #[wasm_bindgen]
-pub fn analyze_repos(subject: &str, repos_json: &str) -> String {
+pub fn analyze_repos(subject: &str, kind_str: &str, repos_json: &str) -> String {
     let repos = match parse_repos(repos_json) {
         Ok(r) => r,
         Err(e) => return format!("err: {e}"),
     };
-    let reading = analyze(subject, SubjectKind::User, &repos);
+    let kind = match kind_str {
+        "org" => SubjectKind::Org,
+        _ => SubjectKind::User,
+    };
+    let reading = analyze(subject, kind, &repos);
     serialize_reading(&reading)
 }
 
