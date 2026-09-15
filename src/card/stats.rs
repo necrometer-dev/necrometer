@@ -12,7 +12,7 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
     let x = 200.0;
 
     s.push_str(&format!(
-        "<text x=\"{x}\" y=\"33\" font-size=\"22\" letter-spacing=\"1.5\" fill=\"{c}\" class=\"font-creepster\" filter=\"url(#glow-violet)\" font-family=\"{font}\">@{subj}</text>",
+        "<text x=\"{x}\" y=\"33\" font-size=\"22\" letter-spacing=\"1.5\" fill=\"{c}\" class=\"font-creepster\" filter=\"url(#glow-violet)\" font-family=\"{font}\">{subj}</text>",
         x = x, c = p.violet, subj = esc_text(&format!("@{}", reading.subject)), font = FONT_CREEPSTER
     ));
 

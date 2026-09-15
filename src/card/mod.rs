@@ -61,6 +61,7 @@ mod tests {
         assert!(svg.contains("Creepster"));
         assert!(svg.contains("necrometer.dev"));
         assert!(svg.contains("@test-user"));
+        assert!(!svg.contains("@@test-user"));
     }
 
     #[test]
