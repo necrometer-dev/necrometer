@@ -36,9 +36,13 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
         x = x, c = p.accent, g = idx_glow, n = reading.index
     ));
 
-    let necro_x = if reading.index >= 100 { x + 82.0 }
-        else if reading.index >= 10 { x + 70.0 }
-        else { x + 56.0 };
+    let necro_x = if reading.index >= 100 {
+        x + 82.0
+    } else if reading.index >= 10 {
+        x + 70.0
+    } else {
+        x + 56.0
+    };
     s.push_str(&format!(
         "<text x=\"{x}\" y=\"62\" font-size=\"12\" letter-spacing=\"1\" fill=\"{c}\" class=\"font-mono\">necrotic</text>",
         x = necro_x, c = p.dim
@@ -54,14 +58,17 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
     ));
 
     let fate_line: Vec<String> = ["alive", "cooling", "cold", "dead", "buried"]
-        .iter().zip(reading.counts.iter())
+        .iter()
+        .zip(reading.counts.iter())
         .filter(|(_, n)| **n > 0)
         .map(|(l, n)| format!("{n} {l}"))
         .collect();
     if !fate_line.is_empty() {
         s.push_str(&format!(
             "<text x=\"{x}\" y=\"119\" font-size=\"11\" fill=\"{c}\">{fate}</text>",
-            x = x, c = p.text, fate = esc_text(&fate_line.join(" · "))
+            x = x,
+            c = p.text,
+            fate = esc_text(&fate_line.join(" · "))
         ));
     }
 
@@ -97,10 +104,17 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
         });
     }
     if !bits.is_empty() {
-        let col = if reading.days_since_any_push == Some(0) { p.phos } else { p.dim };
+        let col = if reading.days_since_any_push == Some(0) {
+            p.phos
+        } else {
+            p.dim
+        };
         s.push_str(&format!(
             "<text x=\"{x}\" y=\"{y}\" font-size=\"10.5\" fill=\"{col}\">{bits}</text>",
-            x = x, y = y, col = col, bits = esc_text(&bits.join(" · "))
+            x = x,
+            y = y,
+            col = col,
+            bits = esc_text(&bits.join(" · "))
         ));
     }
 
@@ -110,17 +124,26 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::palette::palette;
+    use super::*;
     use crate::metrics::{Reading, SubjectKind};
 
     #[test]
     fn zero_repos_shows_message() {
         let r = Reading {
-            subject: "x".into(), kind: SubjectKind::User, total: 0,
-            counts: [0; 5], index: 0, title: "g".into(), flavor: "f".into(),
-            stillborn: 0, stars_stranded: 0, oldest_corpse: None,
-            days_since_any_push: None, low_sample: true, entries: vec![],
+            subject: "x".into(),
+            kind: SubjectKind::User,
+            total: 0,
+            counts: [0; 5],
+            index: 0,
+            title: "g".into(),
+            flavor: "f".into(),
+            stillborn: 0,
+            stars_stranded: 0,
+            oldest_corpse: None,
+            days_since_any_push: None,
+            low_sample: true,
+            entries: vec![],
         };
         let p = palette(0);
         let svg = render(&r, &p);

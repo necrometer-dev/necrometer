@@ -18,19 +18,29 @@ pub fn render(index: u8, p: &Palette) -> String {
     let mut x = x0;
     for _ in 0..beats {
         let a = 10.0 * amp;
-        x += w / 24.0; d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
-        x += w / 48.0; d.push_str(&format!(" L {},{}", fmt(x), fmt(base - a * 0.4)));
-        x += w / 48.0; d.push_str(&format!(" L {},{}", fmt(x), fmt(base - a)));
-        x += w / 48.0; d.push_str(&format!(" L {},{}", fmt(x), fmt(base + a * 0.5)));
-        x += w / 48.0; d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
-        x += w / 16.0; d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+        x += w / 24.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base - a * 0.4)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base - a)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base + a * 0.5)));
+        x += w / 48.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
+        x += w / 16.0;
+        d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
     }
     while x < x0 + w {
         x += w / 12.0;
         d.push_str(&format!(" L {},{}", fmt(x), fmt(base)));
     }
     let color = if index >= 80 { p.blood } else { p.phos };
-    let glow = if index >= 80 { " filter=\"url(#glow-blood)\"" } else { " filter=\"url(#glow-phos)\"" };
+    let glow = if index >= 80 {
+        " filter=\"url(#glow-blood)\""
+    } else {
+        " filter=\"url(#glow-phos)\""
+    };
     let mut s = format!(
         "<path d=\"{d}\" stroke=\"{c}\" stroke-width=\"1.4\" fill=\"none\" stroke-dasharray=\"900\" stroke-dashoffset=\"0\" opacity=\"0.9\"{g}><animate attributeName=\"stroke-dashoffset\" from=\"900\" to=\"0\" dur=\"1.6s\" fill=\"freeze\"/></path>",
         d = d, c = color, g = glow
@@ -48,7 +58,10 @@ pub fn render(index: u8, p: &Palette) -> String {
     } else {
         s.push_str(&format!(
             "<circle cx=\"{x}\" cy=\"{y}\" r=\"1.6\" fill=\"{c}\"{g}/>",
-            x = fmt(x0 + w), y = fmt(base), c = color, g = glow
+            x = fmt(x0 + w),
+            y = fmt(base),
+            c = color,
+            g = glow
         ));
     }
     s

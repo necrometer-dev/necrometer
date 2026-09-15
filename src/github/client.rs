@@ -3,10 +3,10 @@
 //! `GITHUB_TOKEN`. Resolution: orgs vs users vs the token's own
 //! account (sees private).
 
+use super::{parse_repos, Repo};
 use crate::error::Result;
 use crate::http::Client;
 use crate::json::parse;
-use super::{parse_repos, Repo};
 
 const API: &str = "https://api.github.com";
 const MAX_PAGES: u32 = 10;
@@ -41,7 +41,9 @@ impl GitHub {
         Ok(Self { client, token })
     }
 
-    pub fn has_token(&self) -> bool { self.token.is_some() }
+    pub fn has_token(&self) -> bool {
+        self.token.is_some()
+    }
 
     pub fn resolve_repos(&self, name: &str) -> std::result::Result<Vec<Repo>, FetchError> {
         let kind = self.resolve_kind(name);
@@ -59,7 +61,9 @@ impl GitHub {
     }
 
     fn resolve_kind(&self, name: &str) -> Kind {
-        if !self.has_token() { return Kind::User; }
+        if !self.has_token() {
+            return Kind::User;
+        }
         // Probe /users/{n} first; type == "Organization" → Org.
         let probe = format!("{API}/users/{name}");
         if let Ok(r) = self.client.get(&probe, self.token.as_deref()) {
@@ -72,7 +76,10 @@ impl GitHub {
             }
         }
         // Otherwise: check if the token's own user matches.
-        if let Ok(r) = self.client.get(&format!("{API}/user"), self.token.as_deref()) {
+        if let Ok(r) = self
+            .client
+            .get(&format!("{API}/user"), self.token.as_deref())
+        {
             if r.status == 200 {
                 if let Ok(v) = parse(&r.body) {
                     if let Some(login) = v.get("login").and_then(|x| x.as_str()) {
@@ -91,33 +98,48 @@ impl GitHub {
         // batches (2..=4, then 5..=MAX_PAGES) to bound latency.
         let sep = if base.contains('?') { '&' } else { '?' };
         let mut pages = vec![format!("{base}{sep}per_page=100&page=1")];
-        for p in 2..=MAX_PAGES { pages.push(format!("{base}{sep}per_page=100&page={p}")); }
+        for p in 2..=MAX_PAGES {
+            pages.push(format!("{base}{sep}per_page=100&page={p}"));
+        }
 
         let first = self.get_page(&pages[0])?;
-        let total_pages = if first.len() < 100 { 1 } else {
+        let total_pages = if first.len() < 100 {
+            1
+        } else {
             // Heuristic: try fetching all remaining pages in parallel,
             // stop at the first one that returns < 100 or 404.
             let mut all = vec![first];
             for batch in pages[1..].chunks(4) {
                 let results: Vec<_> = std::thread::scope(|s| {
-                    batch.iter().map(|url| {
-                        s.spawn(|| self.get_page(url))
-                    }).collect::<Vec<_>>().into_iter()
-                    .map(|h| h.join().unwrap_or(Err(FetchError::Upstream("worker".into()))))
-                    .collect()
+                    batch
+                        .iter()
+                        .map(|url| s.spawn(|| self.get_page(url)))
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .map(|h| {
+                            h.join()
+                                .unwrap_or(Err(FetchError::Upstream("worker".into())))
+                        })
+                        .collect()
                 });
                 let mut short = false;
                 for r in results {
                     match r {
                         Ok(rs) => {
-                            if rs.len() < 100 { short = true; }
+                            if rs.len() < 100 {
+                                short = true;
+                            }
                             all.push(rs);
                         }
-                        Err(FetchError::NotFound(_)) => { short = true; }
+                        Err(FetchError::NotFound(_)) => {
+                            short = true;
+                        }
                         Err(e) => return Err(e),
                     }
                 }
-                if short { break; }
+                if short {
+                    break;
+                }
             }
             return Ok(all.into_iter().flatten().collect());
         };
@@ -131,14 +153,22 @@ impl GitHub {
             Ok(r) if (200..300).contains(&r.status) => {
                 parse_repos(&r.body).map_err(|e| FetchError::Upstream(format!("{e}")))
             }
-            Ok(r) => Err(FetchError::Upstream(format!("GET {url} -> {}: {}", r.status, head(&r.body)))),
+            Ok(r) => Err(FetchError::Upstream(format!(
+                "GET {url} -> {}: {}",
+                r.status,
+                head(&r.body)
+            ))),
             Err(e) => Err(FetchError::Upstream(format!("{e}"))),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Kind { Org, SelfUser, User }
+enum Kind {
+    Org,
+    SelfUser,
+    User,
+}
 
 fn head(s: &str) -> String {
     s.chars().take(200).collect()
@@ -146,7 +176,6 @@ fn head(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::routes::SubjectKind;
 
     #[test]

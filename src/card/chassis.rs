@@ -2,7 +2,7 @@
 //! filters, font embedding), and the bezel/CRT frame. Watermark at
 //! the bottom-right.
 
-use super::palette::{Palette, FONT, CANVAS_H, CANVAS_W};
+use super::palette::{Palette, CANVAS_H, CANVAS_W, FONT};
 
 pub const CREEPSTER_WOFF2_B64: &str = include_str!("creepster.woff2.b64");
 
@@ -47,9 +47,21 @@ pub fn chassis(p: &Palette) -> String {
         "<rect x=\"5\" y=\"5\" width=\"{w}\" height=\"{h}\" rx=\"7\" fill=\"{panel}\" stroke=\"#231c34\" stroke-width=\"1\"/>",
         w = CANVAS_W - 10, h = CANVAS_H - 10, panel = p.panel
     ));
-    for (cls, fill) in [("", "url(#screen-glow)"), ("crt-scanlines", ""), ("crt-vignette", "")] {
-        let fill_attr = if fill.is_empty() { String::new() } else { format!(" fill=\"{fill}\"") };
-        let class_attr = if cls.is_empty() { String::new() } else { format!(" class=\"{cls}\"") };
+    for (cls, fill) in [
+        ("", "url(#screen-glow)"),
+        ("crt-scanlines", ""),
+        ("crt-vignette", ""),
+    ] {
+        let fill_attr = if fill.is_empty() {
+            String::new()
+        } else {
+            format!(" fill=\"{fill}\"")
+        };
+        let class_attr = if cls.is_empty() {
+            String::new()
+        } else {
+            format!(" class=\"{cls}\"")
+        };
         let pe_attr = if cls == "crt-vignette" || cls == "crt-scanlines" {
             " pointer-events=\"none\"".to_string()
         } else {
@@ -57,8 +69,11 @@ pub fn chassis(p: &Palette) -> String {
         };
         s.push_str(&format!(
             "<rect x=\"8\" y=\"8\" width=\"{w}\" height=\"{h}\" rx=\"5\"{fill}{class}{pe}/>",
-            w = CANVAS_W - 16, h = CANVAS_H - 16,
-            fill = fill_attr, class = class_attr, pe = pe_attr
+            w = CANVAS_W - 16,
+            h = CANVAS_H - 16,
+            fill = fill_attr,
+            class = class_attr,
+            pe = pe_attr
         ));
     }
     s

@@ -70,7 +70,10 @@ pub fn serve(listener: TcpListener, handler: Handler) -> Result<()> {
         };
         let _ = sock.set_read_timeout(Some(Duration::from_secs(15)));
         let h = handler.clone();
-        let peer = sock.peer_addr().map(|a| a.ip().to_string()).unwrap_or_default();
+        let peer = sock
+            .peer_addr()
+            .map(|a| a.ip().to_string())
+            .unwrap_or_default();
         std::thread::spawn(move || {
             if let Ok(req) = read_request(&mut sock, &peer) {
                 let resp = h(req);
@@ -89,21 +92,31 @@ fn read_request(sock: &mut TcpStream, peer: &str) -> Result<Request> {
     let method = parts.next().unwrap_or("").to_string();
     let target = parts.next().unwrap_or("");
     let (path, query) = match target.find('?') {
-        Some(i) => (target[..i].to_string(), target[i+1..].to_string()),
+        Some(i) => (target[..i].to_string(), target[i + 1..].to_string()),
         None => (target.to_string(), String::new()),
     };
     let mut headers = Vec::new();
     loop {
         let mut hl = String::new();
         let n = reader.read_line(&mut hl)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         let hl = hl.trim_end();
-        if hl.is_empty() { break; }
+        if hl.is_empty() {
+            break;
+        }
         if let Some(i) = hl.find(':') {
-            headers.push((hl[..i].trim().to_string(), hl[i+1..].trim().to_string()));
+            headers.push((hl[..i].trim().to_string(), hl[i + 1..].trim().to_string()));
         }
     }
-    Ok(Request { method, path, query, headers, peer: peer.to_string() })
+    Ok(Request {
+        method,
+        path,
+        query,
+        headers,
+        peer: peer.to_string(),
+    })
 }
 
 fn write_response(sock: &mut TcpStream, resp: &Response) -> Result<()> {
@@ -138,7 +151,12 @@ struct RateState {
 
 impl RateLimiter {
     pub fn new(limit: u32) -> Self {
-        Self { inner: std::sync::Mutex::new(RateState { buckets: Default::default(), limit }) }
+        Self {
+            inner: std::sync::Mutex::new(RateState {
+                buckets: Default::default(),
+                limit,
+            }),
+        }
     }
     pub fn allow(&self, ip: &str) -> bool {
         let mut s = self.inner.lock().unwrap();
@@ -148,15 +166,20 @@ impl RateLimiter {
         if now.duration_since(entry.0).as_secs() >= 60 {
             *entry = (now, 0);
         }
-        if entry.1 >= limit { false } else { entry.1 += 1; true }
+        if entry.1 >= limit {
+            false
+        } else {
+            entry.1 += 1;
+            true
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::TcpListener;
     use std::io::Read;
+    use std::net::TcpListener;
 
     #[test]
     fn rate_limiter() {
@@ -179,7 +202,8 @@ mod tests {
         });
         std::thread::sleep(Duration::from_millis(50));
         let mut s = TcpStream::connect(addr).unwrap();
-        s.write_all(b"GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n").unwrap();
+        s.write_all(b"GET /healthz HTTP/1.1\r\nHost: x\r\n\r\n")
+            .unwrap();
         let mut buf = String::new();
         s.read_to_string(&mut buf).unwrap();
         assert!(buf.starts_with("HTTP/1.1 200 OK"));

@@ -28,7 +28,8 @@ fn serve_cmd() -> Result<()> {
     #[cfg(not(feature = "serve"))]
     {
         Err(Error::Other(
-            "the 'serve' subcommand is not compiled in this build. Rebuild with --features serve.".into(),
+            "the 'serve' subcommand is not compiled in this build. Rebuild with --features serve."
+                .into(),
         ))
     }
     #[cfg(feature = "serve")]
@@ -46,30 +47,33 @@ fn serve_cmd() -> Result<()> {
 }
 
 fn card_cmd(args: &[String]) -> Result<()> {
-    let name = args.first().ok_or_else(|| Error::Other(
-        "usage: necrometer card <user-or-org> [out.svg]".into()
-    ))?;
+    let name = args
+        .first()
+        .ok_or_else(|| Error::Other("usage: necrometer card <user-or-org> [out.svg]".into()))?;
     if !is_valid_subject(name) {
         return Err(Error::Other(format!("invalid subject {name:?}")));
     }
     let out = args.get(1).map(String::as_str).unwrap_or("necrometer.svg");
     validate_out_path(out)?;
     let gh = necrometer::github::client::GitHub::new()?;
-    let repos = gh.resolve_repos(name)
+    let repos = gh
+        .resolve_repos(name)
         .map_err(|e| Error::Other(format!("{e}")))?;
     let reading = analyze(name, SubjectKind::User, &repos);
     std::fs::write(out, necrometer::render(&reading))?;
     eprintln!(
         "{}: {}% necrotic ({}) — wrote {out}",
-        esc_text(&reading.subject), reading.index, esc_text(&reading.title)
+        esc_text(&reading.subject),
+        reading.index,
+        esc_text(&reading.title)
     );
     Ok(())
 }
 
 fn hall_cmd(args: &[String]) -> Result<()> {
-    let path = args.first().ok_or_else(|| Error::Other(
-        "usage: necrometer hall <names-file> [out.json]".into()
-    ))?;
+    let path = args
+        .first()
+        .ok_or_else(|| Error::Other("usage: necrometer hall <names-file> [out.json]".into()))?;
     let out = args.get(1).map(String::as_str).unwrap_or("hall.json");
     let names: Vec<String> = std::fs::read_to_string(path)?
         .lines()
@@ -104,11 +108,17 @@ fn hall_cmd(args: &[String]) -> Result<()> {
     hall.sort_by(|a, b| b.index.cmp(&a.index).then(b.corpses.cmp(&a.corpses)));
     let mut json = String::from("[");
     for (i, h) in hall.iter().enumerate() {
-        if i > 0 { json.push(','); }
+        if i > 0 {
+            json.push(',');
+        }
         json.push_str(&format!(
             r#"{{"name":"{}","index":{},"title":"{}","corpses":{},"total":{},"starsStranded":{}}}"#,
-            esc_text(&h.name), h.index, esc_text(&h.title),
-            h.corpses, h.total, h.stars_stranded
+            esc_text(&h.name),
+            h.index,
+            esc_text(&h.title),
+            h.corpses,
+            h.total,
+            h.stars_stranded
         ));
     }
     json.push_str("]\n");

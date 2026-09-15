@@ -22,9 +22,9 @@ pub mod web;
 pub mod wasm;
 
 // Re-export the most common items at the crate root for ergonomics.
-pub use metrics::{analyze, Fate, Reading, SubjectKind};
 pub use card::render;
 #[cfg(not(target_arch = "wasm32"))]
 pub use github::client::{FetchError, GitHub};
 #[cfg(not(target_arch = "wasm32"))]
 pub use github::Repo;
+pub use metrics::{analyze, Fate, Reading, SubjectKind};

@@ -25,7 +25,11 @@ pub fn render(index: u8, p: &Palette) -> String {
 
     g.push_str(&format!(
         "<line x1=\"{x1}\" y1=\"{y1}\" x2=\"{x2}\" y2=\"{y2}\" stroke=\"{c}\" stroke-width=\"1\"/>",
-        x1 = cx - r - 8.0, y1 = cy, x2 = cx + r + 8.0, y2 = cy, c = p.border
+        x1 = cx - r - 8.0,
+        y1 = cy,
+        x2 = cx + r + 8.0,
+        y2 = cy,
+        c = p.border
     ));
 
     g.push_str(&format!(
@@ -39,7 +43,11 @@ pub fn render(index: u8, p: &Palette) -> String {
 
     let theta = 180.0 - index as f64 * 1.8;
     let swing = (180.0 - theta).max(30.0);
-    let needle_glow = if index < 60 { " filter=\"url(#glow-blood)\"" } else { "" };
+    let needle_glow = if index < 60 {
+        " filter=\"url(#glow-blood)\""
+    } else {
+        ""
+    };
     g.push_str(&format!(
         "<g><animateTransform attributeName=\"transform\" type=\"rotate\" values=\"-{s} {cx} {cy};4 {cx} {cy};0 {cx} {cy}\" keyTimes=\"0;0.8;1\" dur=\"1.1s\" fill=\"freeze\"/>",
         s = fmt(swing), cx = cx, cy = cy
@@ -49,7 +57,8 @@ pub fn render(index: u8, p: &Palette) -> String {
         tip = pts(cx, cy, r - 12.0, theta),
         bl = pts(cx, cy, 3.8, theta + 90.0),
         br = pts(cx, cy, 3.8, theta - 90.0),
-        c = p.needle, glow = needle_glow
+        c = p.needle,
+        glow = needle_glow
     ));
     g.push_str(&format!(
         "<circle cx=\"{cx}\" cy=\"{cy}\" r=\"5.5\" fill=\"{bg}\" stroke=\"{c}\" stroke-width=\"1.8\"/></g>",
@@ -65,8 +74,8 @@ pub fn render(index: u8, p: &Palette) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::palette::palette;
+    use super::*;
 
     #[test]
     fn emits_five_zone_arcs() {

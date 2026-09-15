@@ -4,9 +4,13 @@
 use super::geometry::{fmt, pt};
 
 pub fn render(index: u8) -> String {
-    if index == 0 { sunshine() }
-    else if index >= 80 { cracked() }
-    else { String::new() }
+    if index == 0 {
+        sunshine()
+    } else if index >= 80 {
+        cracked()
+    } else {
+        String::new()
+    }
 }
 
 fn sunshine() -> String {
@@ -32,7 +36,9 @@ fn cracked() -> String {
     e.push_str("<polyline points=\"60,75 72,95 66,110 80,128\" stroke=\"#322a4d\" stroke-width=\"1.5\" fill=\"none\"/>");
     e.push_str("<polyline points=\"120,70 112,92 124,105 115,126\" stroke=\"#322a4d\" stroke-width=\"1.2\" fill=\"none\"/>");
     e.push_str("<path d=\"M 470,10 Q 480,20 488,12 M 470,10 Q 478,28 470,36 M 470,10 L 488,36 M 470,10 A 24 24 0 0 1 488,36\" stroke=\"#322a4d\" stroke-width=\"1\" fill=\"none\"/>");
-    e.push_str("<line x1=\"479\" y1=\"24\" x2=\"479\" y2=\"40\" stroke=\"#4d4570\" stroke-width=\"0.8\"/>");
+    e.push_str(
+        "<line x1=\"479\" y1=\"24\" x2=\"479\" y2=\"40\" stroke=\"#4d4570\" stroke-width=\"0.8\"/>",
+    );
     e.push_str("<circle cx=\"479\" cy=\"42\" r=\"2.2\" fill=\"#4d4570\"/>");
     e.push_str("<path d=\"M 477,41 l -2.5,-2 M 477,43 l -2.5,2 M 481,41 l 2.5,-2 M 481,43 l 2.5,2\" stroke=\"#4d4570\" stroke-width=\"0.8\" fill=\"none\"/>");
     e

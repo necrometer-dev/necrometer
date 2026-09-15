@@ -35,27 +35,41 @@ pub fn parse_repos(json_text: &str) -> Result<Vec<Repo>> {
 }
 
 fn parse_repo(v: &Value) -> Result<Repo> {
-    let name = v.get("name")
+    let name = v
+        .get("name")
         .and_then(|x| x.as_str())
         .ok_or_else(|| crate::error::Error::Json("missing name".into()))?
         .to_string();
-    let created_at = v.get("created_at")
+    let created_at = v
+        .get("created_at")
         .and_then(|x| x.as_str())
         .ok_or_else(|| crate::error::Error::Json("missing created_at".into()))?;
     let created_at = Utc::parse_rfc3339(created_at)
         .ok_or_else(|| crate::error::Error::Json("bad created_at".into()))?;
-    let pushed_at = v.get("pushed_at")
+    let pushed_at = v
+        .get("pushed_at")
         .and_then(|x| x.as_str())
         .and_then(Utc::parse_rfc3339);
     let archived = v.get("archived").and_then(|x| x.as_bool()).unwrap_or(false);
     let fork = v.get("fork").and_then(|x| x.as_bool()).unwrap_or(false);
-    let stargazers_count = v.get("stargazers_count")
-        .and_then(|x| x.as_u64()).unwrap_or(0);
-    let html_url = v.get("html_url")
+    let stargazers_count = v
+        .get("stargazers_count")
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let html_url = v
+        .get("html_url")
         .and_then(|x| x.as_str())
         .unwrap_or("")
         .to_string();
-    Ok(Repo { name, pushed_at, created_at, archived, fork, stargazers_count, html_url })
+    Ok(Repo {
+        name,
+        pushed_at,
+        created_at,
+        archived,
+        fork,
+        stargazers_count,
+        html_url,
+    })
 }
 
 #[cfg(test)]

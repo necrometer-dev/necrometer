@@ -3,27 +3,37 @@
 //! land here.
 
 pub fn title_for(index: u8, total: u32) -> String {
-    if total == 0 { return "Ghost — nothing to bury".into(); }
-    if total < 3 { return "Insufficient Corpses".into(); }
+    if total == 0 {
+        return "Ghost — nothing to bury".into();
+    }
+    if total < 3 {
+        return "Insufficient Corpses".into();
+    }
     match index {
         0..=14 => "The Maintainer",
         15..=34 => "Healthy Churn",
         35..=59 => "Serial Starter",
         60..=79 => "Graveyard Keeper",
         _ => "Repo Necromancer",
-    }.into()
+    }
+    .into()
 }
 
 pub fn flavor_for(index: u8, total: u32) -> String {
-    if total == 0 { return "no repos. no pulse. nothing.".into(); }
-    if total < 3 { return "not enough bodies to judge".into(); }
+    if total == 0 {
+        return "no repos. no pulse. nothing.".into();
+    }
+    if total < 3 {
+        return "not enough bodies to judge".into();
+    }
     match index {
         0..=14 => "nothing dies here. suspicious.",
         15..=34 => "a few corpses, like everyone",
         35..=59 => "starts things. finishes? unclear.",
         60..=79 => "more graves than gardens",
         _ => "not a profile — a cemetery",
-    }.into()
+    }
+    .into()
 }
 
 #[cfg(test)]

@@ -52,7 +52,9 @@ pub fn render(index: u8, p: &Palette) -> String {
     }
     s.push_str(&format!(
         "<path d=\"M {x},{y} l -1.4,-2.2 l 2.8,0 Z\" fill=\"{c}\"/>",
-        x = fmt(sx), y = fmt(sy + 4.5), c = p.inset
+        x = fmt(sx),
+        y = fmt(sy + 4.5),
+        c = p.inset
     ));
     if face == "sad" {
         s.push_str(&format!(

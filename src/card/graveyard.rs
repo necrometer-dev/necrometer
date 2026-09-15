@@ -9,14 +9,19 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
     let gy = 180.0_f64;
     let mut s = format!(
         "<line x1=\"24\" y1=\"{gy}\" x2=\"166\" y2=\"{gy}\" stroke=\"{c}\" stroke-width=\"1\"/>",
-        gy = fmt(gy), c = p.border
+        gy = fmt(gy),
+        c = p.border
     );
     let mut dead: Vec<&crate::metrics::Corpse> = reading
         .entries
         .iter()
         .filter(|e| e.fate != Fate::Alive)
         .collect();
-    dead.sort_by(|a, b| b.stillborn.cmp(&a.stillborn).then(b.days_idle.cmp(&a.days_idle)));
+    dead.sort_by(|a, b| {
+        b.stillborn
+            .cmp(&a.stillborn)
+            .then(b.days_idle.cmp(&a.days_idle))
+    });
     if dead.is_empty() {
         for i in 0..3 {
             let fx = 42.0 + i as f64 * 30.0;
@@ -29,18 +34,26 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
                 let color = if i % 2 == 1 { p.blood } else { p.candle };
                 s.push_str(&format!(
                     "<circle cx=\"{x}\" cy=\"{y}\" r=\"1.7\" fill=\"{c}\"/>",
-                    x = fmt(px), y = fmt(py), c = color
+                    x = fmt(px),
+                    y = fmt(py),
+                    c = color
                 ));
             }
             s.push_str(&format!(
                 "<circle cx=\"{x}\" cy=\"{y}\" r=\"1.4\" fill=\"{c}\"/>",
-                x = fmt(fx), y = fmt(gy - 9.5), c = p.text
+                x = fmt(fx),
+                y = fmt(gy - 9.5),
+                c = p.text
             ));
         }
         return format!("<g>{s}</g>");
     }
     for (i, e) in dead.iter().take(6).enumerate() {
-        let (w, h) = if e.stillborn { (8.0, 7.0) } else { (12.0, 11.0) };
+        let (w, h) = if e.stillborn {
+            (8.0, 7.0)
+        } else {
+            (12.0, 11.0)
+        };
         let x = 28.0 + i as f64 * 22.0;
         let top = gy - h;
         s.push_str(&format!(
@@ -53,8 +66,10 @@ pub fn render(reading: &Reading, p: &Palette) -> String {
         ));
         s.push_str(&format!(
             "<path d=\"M {x1},{y1} h 3.6 M {x2},{y2} v 3.6\" stroke=\"{c}\" stroke-width=\"0.9\"/>",
-            x1 = fmt(x + w / 2.0 - 1.8), y1 = fmt(top + w / 2.0 + 1.2),
-            x2 = fmt(x + w / 2.0), y2 = fmt(top + w / 2.0 - 0.6),
+            x1 = fmt(x + w / 2.0 - 1.8),
+            y1 = fmt(top + w / 2.0 + 1.2),
+            x2 = fmt(x + w / 2.0),
+            y2 = fmt(top + w / 2.0 - 0.6),
             c = p.inset
         ));
     }
@@ -75,18 +90,31 @@ mod tests {
 
     fn sample(index: u8) -> Reading {
         let mut r = Reading {
-            subject: "x".into(), kind: SubjectKind::User, total: 0,
-            counts: [0; 5], index, title: "t".into(), flavor: "f".into(),
-            stillborn: 0, stars_stranded: 0, oldest_corpse: None,
-            days_since_any_push: None, low_sample: false, entries: vec![],
+            subject: "x".into(),
+            kind: SubjectKind::User,
+            total: 0,
+            counts: [0; 5],
+            index,
+            title: "t".into(),
+            flavor: "f".into(),
+            stillborn: 0,
+            stars_stranded: 0,
+            oldest_corpse: None,
+            days_since_any_push: None,
+            low_sample: false,
+            entries: vec![],
         };
         if index >= 50 {
             let now = Utc::now();
             r.entries.push(Corpse {
-                name: "a".into(), url: "".into(),
+                name: "a".into(),
+                url: "".into(),
                 created_at: Utc(now.0 - 86400 * 1000),
                 last_activity: Utc(now.0 - 86400 * 900),
-                days_idle: 900, stars: 0, fate: Fate::Dead, stillborn: false,
+                days_idle: 900,
+                stars: 0,
+                fate: Fate::Dead,
+                stillborn: false,
             });
         }
         r

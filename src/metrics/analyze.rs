@@ -33,7 +33,9 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
         let born_dead = stillborn(repo);
         if fate != Fate::Alive {
             stars_stranded += repo.stargazers_count;
-            if born_dead { stillborn_count += 1; }
+            if born_dead {
+                stillborn_count += 1;
+            }
         }
         entries.push(Corpse {
             name: repo.name.clone(),
@@ -78,7 +80,9 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
 }
 
 pub fn fate_of(repo: &Repo, now: Utc) -> Fate {
-    if repo.archived { return Fate::Buried; }
+    if repo.archived {
+        return Fate::Buried;
+    }
     let last_activity = repo.pushed_at.unwrap_or(repo.created_at);
     let d = (now - last_activity).num_days();
     match d {
@@ -99,7 +103,8 @@ mod tests {
             name: "x".into(),
             pushed_at: Some(Utc(now.0 - pushed_days_ago * 86400)),
             created_at: Utc(now.0 - (pushed_days_ago + 400) * 86400),
-            archived, fork,
+            archived,
+            fork,
             stargazers_count: stars,
             html_url: String::new(),
         }
@@ -107,21 +112,26 @@ mod tests {
 
     #[test]
     fn all_alive_is_zero() {
-        let r = analyze("t", SubjectKind::User, &[
-            repo(1, false, false, 0),
-            repo(5, false, false, 0),
-            repo(9, false, false, 0),
-        ]);
+        let r = analyze(
+            "t",
+            SubjectKind::User,
+            &[
+                repo(1, false, false, 0),
+                repo(5, false, false, 0),
+                repo(9, false, false, 0),
+            ],
+        );
         assert_eq!(r.index, 0);
         assert_eq!(r.title, "The Maintainer");
     }
 
     #[test]
     fn forks_excluded() {
-        let r = analyze("t", SubjectKind::User, &[
-            repo(1, false, false, 0),
-            repo(2000, false, true, 0),
-        ]);
+        let r = analyze(
+            "t",
+            SubjectKind::User,
+            &[repo(1, false, false, 0), repo(2000, false, true, 0)],
+        );
         assert_eq!(r.total, 1);
         assert_eq!(r.index, 0);
     }

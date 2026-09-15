@@ -4,8 +4,10 @@
 const W: i32 = 495;
 const H: i32 = 195;
 pub const FONT: &str = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', Helvetica, Arial, sans-serif";
-pub const FONT_CREEPSTER: &str = "'Creepster', cursive, -apple-system, BlinkMacSystemFont, sans-serif";
-pub const FONT_MONO: &str = "'VT323', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+pub const FONT_CREEPSTER: &str =
+    "'Creepster', cursive, -apple-system, BlinkMacSystemFont, sans-serif";
+pub const FONT_MONO: &str =
+    "'VT323', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 pub const FONT_SERIF: &str = "'IM Fell English', Georgia, 'Times New Roman', serif";
 pub const CANVAS_W: i32 = W;
 pub const CANVAS_H: i32 = H;
@@ -44,12 +46,25 @@ pub fn palette(index: u8) -> Palette {
     } else {
         hsl(140.0, 85.0 * sat, 74.5)
     };
-    let needle = if index >= 60 { "#e8e4d8".into() } else { hsl(350.0, 85.0 * sat, 66.0) };
+    let needle = if index >= 60 {
+        "#e8e4d8".into()
+    } else {
+        hsl(350.0, 85.0 * sat, 66.0)
+    };
     Palette {
-        bg: "#0a0812", panel: "#14101f", inset: "#0c0a16", border: "#322a4d",
-        text: "#e8e4d8", dim: "#8a80a8", violet: "#b78cff", phos: "#7dffa8",
-        blood: "#ff5470", candle: "#e8b34b",
-        accent, needle, zones,
+        bg: "#0a0812",
+        panel: "#14101f",
+        inset: "#0c0a16",
+        border: "#322a4d",
+        text: "#e8e4d8",
+        dim: "#8a80a8",
+        violet: "#b78cff",
+        phos: "#7dffa8",
+        blood: "#ff5470",
+        candle: "#e8b34b",
+        accent,
+        needle,
+        zones,
     }
 }
 
@@ -68,7 +83,8 @@ pub fn hsl(h: f64, s: f64, l: f64) -> String {
         _ => (c, 0.0, xm),
     };
     let m = l - c / 2.0;
-    format!("#{:02x}{:02x}{:02x}",
+    format!(
+        "#{:02x}{:02x}{:02x}",
         ((r + m) * 255.0).round() as u8,
         ((g + m) * 255.0).round() as u8,
         ((b + m) * 255.0).round() as u8,

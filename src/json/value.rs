@@ -21,7 +21,9 @@ pub fn write(out: &mut String, v: &Value) {
         Value::Array(a) => {
             out.push('[');
             for (i, x) in a.iter().enumerate() {
-                if i > 0 { out.push(','); }
+                if i > 0 {
+                    out.push(',');
+                }
                 write(out, x);
             }
             out.push(']');
@@ -29,7 +31,9 @@ pub fn write(out: &mut String, v: &Value) {
         Value::Object(o) => {
             out.push('{');
             for (i, (k, x)) in o.iter().enumerate() {
-                if i > 0 { out.push(','); }
+                if i > 0 {
+                    out.push(',');
+                }
                 write_str(out, k);
                 out.push(':');
                 write(out, x);
@@ -59,27 +63,49 @@ impl Value {
     pub fn get(&self, key: &str) -> Option<&Value> {
         if let Value::Object(o) = self {
             for (k, v) in o {
-                if k == key { return Some(v); }
+                if k == key {
+                    return Some(v);
+                }
             }
         }
         None
     }
     pub fn as_str(&self) -> Option<&str> {
-        if let Value::Str(s) = self { Some(s) } else { None }
+        if let Value::Str(s) = self {
+            Some(s)
+        } else {
+            None
+        }
     }
     pub fn as_i64(&self) -> Option<i64> {
-        if let Value::Num(n) = self { Some(*n) } else { None }
+        if let Value::Num(n) = self {
+            Some(*n)
+        } else {
+            None
+        }
     }
     pub fn as_u64(&self) -> Option<u64> {
-        if let Value::Num(n) = self { Some((*n).max(0) as u64) } else { None }
+        if let Value::Num(n) = self {
+            Some((*n).max(0) as u64)
+        } else {
+            None
+        }
     }
     pub fn as_bool(&self) -> Option<bool> {
-        if let Value::Bool(b) = self { Some(*b) } else { None }
+        if let Value::Bool(b) = self {
+            Some(*b)
+        } else {
+            None
+        }
     }
 }
 
 #[allow(dead_code)]
-pub fn _unused_error() -> Error { Error::Json("".into()) }
+pub fn _unused_error() -> Error {
+    Error::Json("".into())
+}
 
 #[allow(dead_code)]
-pub fn _unused_result() -> Result<()> { Ok(()) }
+pub fn _unused_result() -> Result<()> {
+    Ok(())
+}

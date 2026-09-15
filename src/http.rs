@@ -8,8 +8,8 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::Arc;
 
-use rustls::ClientConfig;
 use rustls::pki_types::ServerName;
+use rustls::ClientConfig;
 
 use crate::error::{Error, Result};
 
@@ -27,9 +27,7 @@ pub struct Client {
 
 impl Client {
     pub fn new() -> Result<Self> {
-        let roots = webpki_roots::TLS_SERVER_ROOTS
-            .iter()
-            .cloned();
+        let roots = webpki_roots::TLS_SERVER_ROOTS.iter().cloned();
         let cfg = ClientConfig::builder()
             .with_root_certificates(rustls::RootCertStore::from_iter(roots))
             .with_no_client_auth();
@@ -41,8 +39,8 @@ impl Client {
 
     pub fn get(&self, url: &str, bearer: Option<&str>) -> Result<Response> {
         let (host, port, path) = parse_url(url)?;
-        let server_name = ServerName::try_from(host.clone())
-            .map_err(|e| Error::Tls(format!("dns name: {e}")))?;
+        let server_name =
+            ServerName::try_from(host.clone()).map_err(|e| Error::Tls(format!("dns name: {e}")))?;
         let conn = rustls::ClientConnection::new(self.cfg.clone(), server_name)
             .map_err(|e| Error::Tls(format!("handshake setup: {e}")))?;
         let mut sock = TcpStream::connect((host.as_str(), port))?;
@@ -59,7 +57,6 @@ impl Client {
         tls.write_all(req.as_bytes())?;
         let mut raw = Vec::new();
         tls.read_to_end(&mut raw)?;
-        drop(tls);
         parse_response(&raw)
     }
 }
@@ -69,13 +66,19 @@ fn parse_response(raw: &[u8]) -> Result<Response> {
         .ok_or_else(|| Error::Http("no header terminator".into()))?;
     let head = &raw[..split];
     let body = &raw[split + 4..];
-    let head_str = std::str::from_utf8(head).map_err(|_| Error::Http("bad utf-8 in head".into()))?;
+    let head_str =
+        std::str::from_utf8(head).map_err(|_| Error::Http("bad utf-8 in head".into()))?;
     let mut lines = head_str.split("\r\n");
-    let status_line = lines.next().ok_or_else(|| Error::Http("no status line".into()))?;
+    let status_line = lines
+        .next()
+        .ok_or_else(|| Error::Http("no status line".into()))?;
     let mut parts = status_line.split(' ');
     let _http = parts.next();
-    let status: u16 = parts.next().ok_or_else(|| Error::Http("no status".into()))?
-        .parse().map_err(|_| Error::Http("bad status".into()))?;
+    let status: u16 = parts
+        .next()
+        .ok_or_else(|| Error::Http("no status".into()))?
+        .parse()
+        .map_err(|_| Error::Http("bad status".into()))?;
     let mut next: Option<String> = None;
     let mut is_chunked = false;
     let mut content_length: Option<usize> = None;
@@ -90,7 +93,9 @@ fn parse_response(raw: &[u8]) -> Result<Response> {
                 }
             }
         } else if let Some(rest) = line.strip_prefix("Transfer-Encoding:") {
-            if rest.trim().eq_ignore_ascii_case("chunked") { is_chunked = true; }
+            if rest.trim().eq_ignore_ascii_case("chunked") {
+                is_chunked = true;
+            }
         } else if let Some(rest) = line.strip_prefix("Content-Length:") {
             content_length = rest.trim().parse().ok();
         }
@@ -113,33 +118,44 @@ fn dechunk(body: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < body.len() {
-        let line_end = find_subslice(&body[i..], b"\r\n")
-            .ok_or_else(|| Error::Http("bad chunk".into()))?;
-        let size_str = std::str::from_utf8(&body[i..i+line_end])
+        let line_end =
+            find_subslice(&body[i..], b"\r\n").ok_or_else(|| Error::Http("bad chunk".into()))?;
+        let size_str = std::str::from_utf8(&body[i..i + line_end])
             .map_err(|_| Error::Http("bad utf-8 in chunk".into()))?;
         let size = usize::from_str_radix(size_str.trim(), 16)
             .map_err(|_| Error::Http("bad chunk size".into()))?;
         i += line_end + 2;
-        if size == 0 { break; }
-        if i + size > body.len() { return Err(Error::Http("chunk overruns body".into())); }
-        out.extend_from_slice(&body[i..i+size]);
+        if size == 0 {
+            break;
+        }
+        if i + size > body.len() {
+            return Err(Error::Http("chunk overruns body".into()));
+        }
+        out.extend_from_slice(&body[i..i + size]);
         i += size;
-        if i + 2 <= body.len() { i += 2; } // trailing \r\n
+        if i + 2 <= body.len() {
+            i += 2;
+        } // trailing \r\n
     }
     Ok(out)
 }
 
 fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || hay.len() < needle.len() { return None; }
+    if needle.is_empty() || hay.len() < needle.len() {
+        return None;
+    }
     for i in 0..=hay.len() - needle.len() {
-        if &hay[i..i+needle.len()] == needle { return Some(i); }
+        if &hay[i..i + needle.len()] == needle {
+            return Some(i);
+        }
     }
     None
 }
 
 /// Split a URL into host / port / path. Handles `https://host[:port]/path?q`.
 fn parse_url(url: &str) -> Result<(String, u16, String)> {
-    let rest = url.strip_prefix("https://")
+    let rest = url
+        .strip_prefix("https://")
         .ok_or_else(|| Error::Http("only https supported".into()))?;
     let (authority, path) = match rest.find('/') {
         Some(i) => (&rest[..i], &rest[i..]),
@@ -147,7 +163,8 @@ fn parse_url(url: &str) -> Result<(String, u16, String)> {
     };
     let (host, port) = match authority.find(':') {
         Some(i) => {
-            let p: u16 = authority[i+1..].parse()
+            let p: u16 = authority[i + 1..]
+                .parse()
                 .map_err(|_| Error::Http("bad port".into()))?;
             (&authority[..i], p)
         }

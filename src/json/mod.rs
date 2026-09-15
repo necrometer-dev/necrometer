@@ -35,7 +35,10 @@ mod tests {
     fn parse_and_serialize_repo() {
         let raw = r#"[{"name":"x","pushed_at":"2024-01-15T12:34:56Z","created_at":"2023-01-15T12:34:56Z","archived":false,"fork":false,"stargazers_count":42,"html_url":"https://example.com/x"}]"#;
         let v = parse(raw).unwrap();
-        let arr = match v { Value::Array(a) => a, _ => panic!() };
+        let arr = match v {
+            Value::Array(a) => a,
+            _ => panic!(),
+        };
         assert_eq!(arr.len(), 1);
         assert_eq!(arr[0].get("name").unwrap().as_str(), Some("x"));
         assert_eq!(arr[0].get("stargazers_count").unwrap().as_i64(), Some(42));

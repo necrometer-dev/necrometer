@@ -11,7 +11,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(inline_js = "export function __necrometer_now() { return Math.floor(Date.now() / 1000); }")]
+#[wasm_bindgen(
+    inline_js = "export function __necrometer_now() { return Math.floor(Date.now() / 1000); }"
+)]
 extern "C" {
     fn __necrometer_now() -> f64;
 }
@@ -117,8 +119,8 @@ impl Utc {
         }
 
         let days = days_from_civil(year, month, day)?;
-        let secs = days as i64 * 86400 + hour as i64 * 3600 + minute as i64 * 60 + second as i64
-            - tz_offset_secs;
+        let secs =
+            days * 86400 + hour as i64 * 3600 + minute as i64 * 60 + second as i64 - tz_offset_secs;
         Some(Utc(secs))
     }
 
@@ -130,9 +132,7 @@ impl Utc {
         let hour = rem / 3600;
         let minute = (rem / 60) % 60;
         let second = rem % 60;
-        format!(
-            "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z",
-        )
+        format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z",)
     }
 }
 
@@ -160,13 +160,13 @@ fn parse_int_range(b: &[u8], n: usize) -> Option<u32> {
 /// Howard Hinnant's days_from_civil: days since 1970-01-01 for a given
 /// proleptic Gregorian date. Returns None for impossible dates.
 fn days_from_civil(y: u32, m: u32, d: u32) -> Option<i64> {
-    if m < 1 || m > 12 || d < 1 || d > 31 {
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
         return None;
     }
     let y = if m <= 2 { y - 1 } else { y } as i64;
     let m = if m <= 2 { m + 9 } else { m - 3 } as i64;
     let era = y.div_euclid(400);
-    let yoe = (y - era * 400) as i64;
+    let yoe = y - era * 400;
     let doy = (153 * m + 2) / 5 + d as i64 - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146097 + doe - 719468;
@@ -176,7 +176,7 @@ fn days_from_civil(y: u32, m: u32, d: u32) -> Option<i64> {
 fn civil_from_days(z: i64) -> (u32, u32, u32, u32, u32, u32) {
     let z = z + 719468;
     let era = z.div_euclid(146097);
-    let doe = (z - era * 146097) as i64;
+    let doe = z - era * 146097;
     let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
     let y = yoe + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);

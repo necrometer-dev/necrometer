@@ -43,19 +43,31 @@ pub fn handler(st: Arc<AppState>) -> Handler {
 fn route(st: &AppState, req: Request) -> Response {
     let path = req.path.as_str();
     let limit_paths = ["/u/", "/org/", "/go"];
-    if limit_paths.iter().any(|p| path.starts_with(p)) {
-        if !st.limiter.allow(&req.peer) { return Response::too_many(); }
+    if limit_paths.iter().any(|p| path.starts_with(p)) && !st.limiter.allow(&req.peer) {
+        return Response::too_many();
     }
-    if path == "/" || path.is_empty() { return Response::html(pages::landing()); }
-    if path == "/healthz" { return Response::plain("ok"); }
-    if path == "/go" || path.starts_with("/go?") { return handle_go(&req); }
-    if let Some(rest) = path.strip_prefix("/u/") { return handle_subject(st, rest, SubjectKind::User); }
-    if let Some(rest) = path.strip_prefix("/org/") { return handle_subject(st, rest, SubjectKind::Org); }
+    if path == "/" || path.is_empty() {
+        return Response::html(pages::landing());
+    }
+    if path == "/healthz" {
+        return Response::plain("ok");
+    }
+    if path == "/go" || path.starts_with("/go?") {
+        return handle_go(&req);
+    }
+    if let Some(rest) = path.strip_prefix("/u/") {
+        return handle_subject(st, rest, SubjectKind::User);
+    }
+    if let Some(rest) = path.strip_prefix("/org/") {
+        return handle_subject(st, rest, SubjectKind::Org);
+    }
     Response::not_found()
 }
 
 fn handle_go(req: &Request) -> Response {
-    let subject = req.query.split('&')
+    let subject = req
+        .query
+        .split('&')
         .find_map(|kv| kv.strip_prefix("subject="))
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
@@ -76,12 +88,18 @@ fn handle_subject(st: &AppState, rest: &str, kind: SubjectKind) -> Response {
     let reading = match read_or_fetch(st, &name, kind) {
         Ok(r) => r,
         Err(FetchError::NotFound(n)) => {
-            return Response::html(pages::not_found(&format!("no such {}: {n}", kind_str(kind))));
+            return Response::html(pages::not_found(&format!(
+                "no such {}: {n}",
+                kind_str(kind)
+            )));
         }
         Err(FetchError::Upstream(e)) => {
             eprintln!("github fetch failed: {e}");
-            return Response::with_type(502, "text/html; charset=utf-8",
-                pages::upstream_error().into_bytes());
+            return Response::with_type(
+                502,
+                "text/html; charset=utf-8",
+                pages::upstream_error().into_bytes(),
+            );
         }
     };
     if want_svg {
@@ -91,22 +109,34 @@ fn handle_subject(st: &AppState, rest: &str, kind: SubjectKind) -> Response {
     }
 }
 
-fn read_or_fetch(st: &AppState, name: &str, kind: SubjectKind) -> std::result::Result<Reading, FetchError> {
+fn read_or_fetch(
+    st: &AppState,
+    name: &str,
+    kind: SubjectKind,
+) -> std::result::Result<Reading, FetchError> {
     let key = format!("{}:{name}", kind.prefix());
     {
         let cache = st.cache.lock().unwrap();
         if let Some((ts, r)) = cache.get(&key) {
-            if ts.elapsed() < CACHE_TTL { return Ok(r.clone()); }
+            if ts.elapsed() < CACHE_TTL {
+                return Ok(r.clone());
+            }
         }
     }
     let repos = st.gh.resolve_repos(name)?;
     let reading = analyze(name, kind, &repos);
-    st.cache.lock().unwrap().insert(key, (Instant::now(), reading.clone()));
+    st.cache
+        .lock()
+        .unwrap()
+        .insert(key, (Instant::now(), reading.clone()));
     Ok(reading)
 }
 
 fn kind_str(kind: SubjectKind) -> &'static str {
-    match kind { SubjectKind::User => "user", SubjectKind::Org => "org" }
+    match kind {
+        SubjectKind::User => "user",
+        SubjectKind::Org => "org",
+    }
 }
 
 /// Entry point: bind, build state, run forever.
