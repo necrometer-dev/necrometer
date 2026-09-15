@@ -1,6 +1,6 @@
 [package]
 name = "seance"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2021"
 description = "The Seance engine — what powers the Necrometer card. Measures how dead your GitHub repos are and renders an embeddable necrosis gauge."
 license = "MIT"
@@ -34,7 +34,7 @@ serve = []
 # TLS for the native HTTPS client. rustls (no OpenSSL) keeps the musl
 # binary statically linked; webpki-roots bundles CA certs so we don't
 # depend on the system trust store.
-rustls = { version = "0.23", default-features = false, features = ["std", "logging", "tls12", "ring"] }
+rustls = { version = "0.23.45", default-features = false, features = ["std", "logging", "tls12", "ring"] }
 webpki-roots = "0.26"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

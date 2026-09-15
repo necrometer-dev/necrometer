@@ -69,7 +69,7 @@ plus a wasm smoke test. Local reproduction:
 
 ```sh
 wasm-pack build --release --target web --out-dir pkg
-node -e 'const w=require("./pkg/seance.js");const fs=require("fs");w.initSync({module:fs.readFileSync("./pkg/seance_bg.wasm")});const r=w.analyze_repos("ci",JSON.stringify([{name:"alive",pushed_at:"2024-09-01T00:00:00Z",created_at:"2023-01-01T00:00:00Z",archived:false,fork:false,stargazers_count:5,html_url:"x"}]));console.log(r.length,r.startsWith("{"));'
+node ci/wasm-smoke.mjs
 ```
 
 ## Bumping the version

@@ -12,20 +12,18 @@ version = 2
 yanked = "warn"
 
 [licenses]
+# Allow-list matches the licenses actually present in the rustls +
+# wasm-bindgen closure. CI runs `cargo deny check --deny warnings`, so
+# unused allowances would fail the build — don't list licenses we don't
+# currently depend on.
 allow = [
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
     "BSD-3-Clause",
-    "CC0-1.0",
+    "CDLA-Permissive-2.0",  # webpki-roots (Mozilla CA bundle)
     "ISC",
     "MIT",
-    "MPL-2.0",
-    "Unicode-DFS-2016",
     "Unicode-3.0",
-    "Zlib",
-    "OpenSSL",         # ring2 ships this for its bundled BoringSSL
-    "0BSD",
 ]
 confidence-threshold = 0.8
 
