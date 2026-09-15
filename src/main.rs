@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use seance::error::{Error, Result};
 use seance::escape::esc_text;
-use seance::github::routes::{is_valid_subject, validate_out_path, SubjectKind};
+use seance::github::routes::{is_valid_subject, validate_out_path};
 use seance::metrics::{analyze, Fate};
 
 fn main() -> Result<()> {
@@ -56,10 +56,8 @@ fn card_cmd(args: &[String]) -> Result<()> {
     let out = args.get(1).map(String::as_str).unwrap_or("necrometer.svg");
     validate_out_path(out)?;
     let gh = seance::github::client::GitHub::new()?;
-    let repos = gh
-        .resolve_repos(name)
-        .map_err(|e| Error::Other(format!("{e}")))?;
-    let reading = analyze(name, SubjectKind::User, &repos);
+    let (kind, repos) = gh.resolve(name).map_err(|e| Error::Other(format!("{e}")))?;
+    let reading = analyze(name, kind, &repos);
     std::fs::write(out, seance::render(&reading))?;
     eprintln!(
         "{}: {}% necrotic ({}) — wrote {out}",
@@ -84,9 +82,9 @@ fn hall_cmd(args: &[String]) -> Result<()> {
     let gh = seance::github::client::GitHub::new()?;
     let mut hall: Vec<HallEntry> = Vec::new();
     for name in &names {
-        match gh.resolve_repos(name) {
-            Ok(repos) => {
-                let r = analyze(name, SubjectKind::User, &repos);
+        match gh.resolve(name) {
+            Ok((kind, repos)) => {
+                let r = analyze(name, kind, &repos);
                 let corpses = r.entries.iter().filter(|e| e.fate != Fate::Alive).count() as u32;
                 hall.push(HallEntry {
                     name: name.clone(),

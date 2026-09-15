@@ -12,20 +12,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-publish:
     name: Build wasm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install wasm-pack
-        run: |
-          curl --proto '=https' --tlsv1.2 --silent --show-error --location \
-            https://rustwasm.github.io/wasm-pack/installer/init.sh -o /tmp/wi
-          bash /tmp/wi
+        run: bash ci/install-wasm-pack.sh
 
       - name: Build wasm
         uses: dtolnay/rust-toolchain@stable
@@ -39,5 +36,18 @@ jobs:
         with:
           name: seance-wasm
           path: pkg
-          # The github.io pkg/ is updated in necrometer-dev.github.io
-          # (GITHUB_TOKEN cannot open a PR in another repo).
+
+      - name: commit pkg for the site sync
+        run: |
+          set -euo pipefail
+          git config user.name "necrometer[bot]"
+          git config user.email "bot@necrometer.dev"
+          git add -f pkg/seance.js pkg/seance.d.ts pkg/seance_bg.wasm \
+            pkg/seance_bg.wasm.d.ts pkg/snippets
+          if git diff --cached --quiet; then
+            echo "pkg unchanged"
+            exit 0
+          fi
+          git commit -m "wasm: refresh pkg"
+          git pull --rebase --autostash
+          git push

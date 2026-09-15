@@ -5,8 +5,8 @@
 #
 # Pinned by digest. Replace after running:
 #   crane digest docker.io/clux/muslrust:stable
-FROM docker.io/clux/muslrust:stable AS chef
-RUN cargo install cargo-chef --locked
+FROM docker.io/clux/muslrust:stable@sha256:7bfc0bab393986871e78e50c90e19e2a85df4fd8764a0cb881b6028abbcee4f6 AS chef
+RUN cargo install cargo-chef --locked --version 0.1.78
 WORKDIR /usr/src/necrometer
 
 FROM chef AS planner
@@ -17,17 +17,19 @@ FROM chef AS builder
 ARG SOURCE_DATE_EPOCH=0
 ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
 COPY --from=planner /usr/src/necrometer/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json --target x86_64-unknown-linux-musl
+RUN cargo chef cook --release --recipe-path recipe.json --target x86_64-unknown-linux-musl --features serve
 COPY . .
 # Reproducible: SOURCE_DATE_EPOCH is honored for filesystem timestamps.
-RUN cargo build --release --target x86_64-unknown-linux-musl --bin seance \
+# `--features serve` is load-bearing: without it `seance` (no args) and
+# `/healthz` fail because the daemon is feature-gated.
+RUN cargo build --release --target x86_64-unknown-linux-musl --bin seance --features serve \
  && cp target/x86_64-unknown-linux-musl/release/seance /tmp/seance \
  && strip /tmp/seance
 
 # Stage 2: Alpine Linux runtime.
 # Pinned by digest. Replace after running:
 #   crane digest alpine:3.20
-FROM alpine:3.20
+FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
 
 RUN apk add --no-cache \
         ca-certificates \

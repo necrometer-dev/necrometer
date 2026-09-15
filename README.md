@@ -48,7 +48,7 @@ because GitHub allows declarative SVG animation (scripts are blocked; SMIL is no
 ## install (the Action does this for you)
 
 ```sh
-REL=https://github.com/necrometer-dev/necrometer/releases/download/v0.4.5
+REL=https://github.com/necrometer-dev/necrometer/releases/download/v0.4.6
 curl -sSLO $REL/seance-x86_64-unknown-linux-musl.tar.gz
 curl -sSLO $REL/SHA256SUMS
 sha256sum -c SHA256SUMS

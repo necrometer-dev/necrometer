@@ -66,8 +66,8 @@ pub fn analyze(subject: &str, kind: SubjectKind, repos: &[Repo]) -> Reading {
         subject: subject.to_string(),
         kind,
         index,
-        title: title_for(index, total),
-        flavor: flavor_for(index, total),
+        title: title_for(index, total, kind),
+        flavor: flavor_for(index, total, kind),
         counts,
         total,
         stars_stranded,
@@ -123,6 +123,16 @@ mod tests {
         );
         assert_eq!(r.index, 0);
         assert_eq!(r.title, "The Maintainer");
+        let org = analyze(
+            "o",
+            SubjectKind::Org,
+            &[
+                repo(1, false, false, 0),
+                repo(5, false, false, 0),
+                repo(9, false, false, 0),
+            ],
+        );
+        assert_eq!(org.title, "Healthy Churn");
     }
 
     #[test]

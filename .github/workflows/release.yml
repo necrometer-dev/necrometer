@@ -6,18 +6,20 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   cli-binary:
     name: Build & Publish CLI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-musl
       - run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - run: cargo build --release --target x86_64-unknown-linux-musl
+      - run: cargo build --release --target x86_64-unknown-linux-musl --bin seance
       - name: Package
         run: |
           mkdir -p dist
@@ -30,3 +32,6 @@ jobs:
           files: |
             dist/seance-x86_64-unknown-linux-musl.tar.gz
             dist/SHA256SUMS
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/seance-x86_64-unknown-linux-musl.tar.gz

@@ -13,7 +13,7 @@ jobs:
     name: fmt + clippy + test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -29,10 +29,7 @@ jobs:
       # "type": "module"). Do not inline it here: a plain `run:` scalar
       # containing `: ` is invalid YAML and GitHub will fail the workflow
       # at parse time with zero jobs.
-      - run: |
-          curl --proto '=https' --tlsv1.2 --silent --show-error --location \
-            https://rustwasm.github.io/wasm-pack/installer/init.sh -o /tmp/wi
-          bash /tmp/wi
+      - run: bash ci/install-wasm-pack.sh
       - run: wasm-pack build --release --target web --out-dir pkg
       - run: node ci/wasm-smoke.mjs
 
@@ -40,7 +37,7 @@ jobs:
     name: musl static build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-musl

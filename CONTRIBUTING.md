@@ -57,7 +57,7 @@ cargo build --release --target x86_64-unknown-linux-musl --bin seance
 ## Testing
 
 ```sh
-cargo test --lib                  # 47 unit tests across the modules
+cargo test --lib                  # unit tests across the modules
 cargo clippy --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 cargo audit                       # known CVEs in the dep graph
@@ -81,8 +81,9 @@ git tag -a vX.Y.Z -m "vX.Y.Z: ..."
 git push origin vX.Y.Z
 ```
 
-The release workflow builds the musl tarball + SHA256SUMS, and the
-Action at `necrometer-dev/necrometer-action` pins to that tag.
+The release workflow builds the musl tarball + SHA256SUMS + a provenance
+attestation. Then bump `necrometer-action` `inputs.release.default`, tag
+that repo `vX.Y.Z` — `retag-v1.yml` force-moves the floating `@v1` tag.
 
 ## Security
 

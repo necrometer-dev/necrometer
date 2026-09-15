@@ -1,9 +1,10 @@
 [package]
 name = "seance"
-version = "0.4.5"
+version = "0.4.6"
 edition = "2021"
 description = "The Seance engine — what powers the Necrometer card. Measures how dead your GitHub repos are and renders an embeddable necrosis gauge."
 license = "MIT"
+repository = "https://github.com/necrometer-dev/necrometer"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -35,7 +36,7 @@ serve = []
 # binary statically linked; webpki-roots bundles CA certs so we don't
 # depend on the system trust store.
 rustls = { version = "0.23.45", default-features = false, features = ["std", "logging", "tls12", "ring"] }
-webpki-roots = "0.26"
+webpki-roots = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

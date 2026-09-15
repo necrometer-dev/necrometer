@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Read version from Cargo.toml
         id: ver
@@ -46,9 +46,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
-            type=raw,value=${{ steps.ver.outputs.version }}
-            type=raw,value=v${{ steps.ver.outputs.version }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=${{ steps.ver.outputs.version }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=v${{ steps.ver.outputs.version }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=sha,format=short
           labels: |
             org.opencontainers.image.title=Necrometer
@@ -56,7 +56,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.version=${{ steps.ver.outputs.version }}
-            org.opencontainers.image.base.name=docker.io/library/alpine:3.20
+            org.opencontainers.image.base.name=docker.io/library/alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
 
       - name: Build and Push Docker Image (with SBOM + provenance)
         id: build

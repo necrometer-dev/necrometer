@@ -3,7 +3,11 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod client;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod pages;
 pub mod routes;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod status;
 
 use crate::error::Result;
 use crate::json::{parse, Value};

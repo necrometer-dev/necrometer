@@ -1,15 +1,14 @@
-//! Native-only GitHub REST client. Replaces reqwest's role in the
-//! engine. Auth: first non-empty of `NECRO_TOKEN`, `GH_TOKEN`,
-//! `GITHUB_TOKEN`. Resolution: orgs vs users vs the token's own
-//! account (sees private).
+//! Native-only GitHub REST client. Auth: first non-empty of
+//! `NECRO_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`.
 
+use super::pages::collect_pages;
+use super::status::{classify_status, fetch_error, kind_from_user_doc, ProbeKind, StatusClass};
 use super::{parse_repos, Repo};
 use crate::error::Result;
 use crate::http::Client;
-use crate::json::parse;
+use crate::metrics::SubjectKind;
 
 const API: &str = "https://api.github.com";
-const MAX_PAGES: u32 = 10;
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -37,141 +36,97 @@ impl GitHub {
             .iter()
             .find_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()))
             .map(|s| s.trim().to_string());
-        let client = Client::new()?;
-        Ok(Self { client, token })
+        Ok(Self {
+            client: Client::new()?,
+            token,
+        })
     }
 
     pub fn has_token(&self) -> bool {
         self.token.is_some()
     }
 
-    pub fn resolve_repos(&self, name: &str) -> std::result::Result<Vec<Repo>, FetchError> {
-        let kind = self.resolve_kind(name);
+    /// Kind + owned-repo list. Kind comes from `GET /users/{name}`
+    /// (`type: Organization` vs User), not from which list endpoint 200s.
+    pub fn resolve(&self, name: &str) -> std::result::Result<(SubjectKind, Vec<Repo>), FetchError> {
+        let kind = self.probe_kind(name)?;
         let endpoint = match kind {
-            Kind::Org => format!("{API}/orgs/{}/repos?type=all", name),
-            Kind::SelfUser => format!("{API}/user/repos?visibility=all&affiliation=owner"),
-            Kind::User => format!("{API}/users/{}/repos", name),
-        };
-        match self.fetch_all(&endpoint) {
-            Err(FetchError::NotFound(_)) if kind == Kind::Org => {
-                self.fetch_all(&format!("{API}/users/{name}/repos"))
+            ProbeKind::Org => format!("{API}/orgs/{name}/repos?type=all"),
+            ProbeKind::SelfUser => {
+                format!("{API}/user/repos?visibility=all&affiliation=owner")
             }
-            r => r,
+            ProbeKind::User => format!("{API}/users/{name}/repos"),
+        };
+        let repos = match self.fetch_all(&endpoint) {
+            Err(FetchError::NotFound(_)) if kind == ProbeKind::Org => {
+                self.fetch_all(&format!("{API}/users/{name}/repos"))?
+            }
+            r => r?,
+        };
+        Ok((kind.subject_kind(), repos))
+    }
+
+    pub fn resolve_repos(&self, name: &str) -> std::result::Result<Vec<Repo>, FetchError> {
+        self.resolve(name).map(|(_, r)| r)
+    }
+
+    fn probe_kind(&self, name: &str) -> std::result::Result<ProbeKind, FetchError> {
+        let r = self
+            .client
+            .get(&format!("{API}/users/{name}"), self.token.as_deref())
+            .map_err(|e| FetchError::Upstream(format!("{e}")))?;
+        match classify_status(r.status) {
+            StatusClass::Ok => {
+                let me = self.self_login();
+                Ok(kind_from_user_doc(&r.body, name, me.as_deref()))
+            }
+            StatusClass::NotFound => Err(FetchError::NotFound(name.to_string())),
+            _ => Err(fetch_error(
+                r.status,
+                &format!("{API}/users/{name}"),
+                &r.body,
+            )),
         }
     }
 
-    fn resolve_kind(&self, name: &str) -> Kind {
+    fn self_login(&self) -> Option<String> {
         if !self.has_token() {
-            return Kind::User;
+            return None;
         }
-        // Probe /users/{n} first; type == "Organization" → Org.
-        let probe = format!("{API}/users/{name}");
-        if let Ok(r) = self.client.get(&probe, self.token.as_deref()) {
-            if r.status == 200 {
-                if let Ok(v) = parse(&r.body) {
-                    if v.get("type").and_then(|x| x.as_str()) == Some("Organization") {
-                        return Kind::Org;
-                    }
-                }
-            }
-        }
-        // Otherwise: check if the token's own user matches.
-        if let Ok(r) = self
+        let r = self
             .client
             .get(&format!("{API}/user"), self.token.as_deref())
-        {
-            if r.status == 200 {
-                if let Ok(v) = parse(&r.body) {
-                    if let Some(login) = v.get("login").and_then(|x| x.as_str()) {
-                        if login.eq_ignore_ascii_case(name) {
-                            return Kind::SelfUser;
-                        }
-                    }
-                }
-            }
+            .ok()?;
+        if r.status != 200 {
+            return None;
         }
-        Kind::User
+        crate::json::parse(&r.body)
+            .ok()?
+            .get("login")?
+            .as_str()
+            .map(String::from)
     }
 
     fn fetch_all(&self, base: &str) -> std::result::Result<Vec<Repo>, FetchError> {
-        // First page sequential; subsequent pages in two parallel
-        // batches (2..=4, then 5..=MAX_PAGES) to bound latency.
         let sep = if base.contains('?') { '&' } else { '?' };
-        let mut pages = vec![format!("{base}{sep}per_page=100&page=1")];
-        for p in 2..=MAX_PAGES {
-            pages.push(format!("{base}{sep}per_page=100&page={p}"));
-        }
-
-        let first = self.get_page(&pages[0])?;
-        let total_pages = if first.len() < 100 {
-            1
-        } else {
-            // Heuristic: try fetching all remaining pages in parallel,
-            // stop at the first one that returns < 100 or 404.
-            let mut all = vec![first];
-            for batch in pages[1..].chunks(4) {
-                let results: Vec<_> = std::thread::scope(|s| {
-                    batch
-                        .iter()
-                        .map(|url| s.spawn(|| self.get_page(url)))
-                        .collect::<Vec<_>>()
-                        .into_iter()
-                        .map(|h| {
-                            h.join()
-                                .unwrap_or(Err(FetchError::Upstream("worker".into())))
-                        })
-                        .collect()
-                });
-                let mut short = false;
-                for r in results {
-                    match r {
-                        Ok(rs) => {
-                            if rs.len() < 100 {
-                                short = true;
-                            }
-                            all.push(rs);
-                        }
-                        Err(FetchError::NotFound(_)) => {
-                            short = true;
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-                if short {
-                    break;
-                }
-            }
-            return Ok(all.into_iter().flatten().collect());
-        };
-        let _ = total_pages;
-        Ok(first)
+        collect_pages(|page| {
+            let url = format!("{base}{sep}per_page=100&page={page}");
+            self.get_page(&url)
+        })
     }
 
     fn get_page(&self, url: &str) -> std::result::Result<Vec<Repo>, FetchError> {
-        match self.client.get(url, self.token.as_deref()) {
-            Ok(r) if r.status == 404 => Err(FetchError::NotFound(url.to_string())),
-            Ok(r) if (200..300).contains(&r.status) => {
+        let r = self
+            .client
+            .get(url, self.token.as_deref())
+            .map_err(|e| FetchError::Upstream(format!("{e}")))?;
+        match classify_status(r.status) {
+            StatusClass::Ok => {
                 parse_repos(&r.body).map_err(|e| FetchError::Upstream(format!("{e}")))
             }
-            Ok(r) => Err(FetchError::Upstream(format!(
-                "GET {url} -> {}: {}",
-                r.status,
-                head(&r.body)
-            ))),
-            Err(e) => Err(FetchError::Upstream(format!("{e}"))),
+            _ => Err(fetch_error(r.status, url, &r.body)),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Kind {
-    Org,
-    SelfUser,
-    User,
-}
-
-fn head(s: &str) -> String {
-    s.chars().take(200).collect()
 }
 
 #[cfg(test)]

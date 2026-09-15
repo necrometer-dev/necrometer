@@ -33,7 +33,7 @@ impl Client {
             .with_no_client_auth();
         Ok(Self {
             cfg: Arc::new(cfg),
-            user_agent: "necrometer/0.2 (https://necrometer.dev)".into(),
+            user_agent: "necrometer/0.4 (https://necrometer.dev)".into(),
         })
     }
 
