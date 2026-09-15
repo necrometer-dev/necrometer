@@ -5,32 +5,38 @@ use wasm_bindgen::prelude::*;
 
 use crate::card;
 use crate::github::parse_repos;
-use crate::metrics::{analyze, Reading, SubjectKind};
+use crate::metrics::{analyze, Fate, Reading, SubjectKind};
 
 /// `repos_json`: raw JSON array from `api.github.com/.../repos`.
 /// Returns the reading as JSON.
 #[wasm_bindgen]
-pub fn analyze_repos(subject: &str, repos_json: &str) -> Result<String, JsValue> {
-    let repos = parse_repos(repos_json).map_err(|e| JsValue::from_str(&format!("{e}")))?;
+pub fn analyze_repos(subject: &str, repos_json: &str) -> String {
+    let repos = match parse_repos(repos_json) {
+        Ok(r) => r,
+        Err(e) => return format!("err: {e}"),
+    };
     let reading = analyze(subject, SubjectKind::User, &repos);
-    serialize_reading(&reading).map_err(|e| JsValue::from_str(&e))
+    serialize_reading(&reading)
 }
 
-/// `reading_json`: a Reading JSON (from `analyze_repos`, possibly
-/// round-tripped). Returns the SVG card.
+/// `reading_json`: a Reading JSON (from analyze_repos, possibly
+/// round-tripped). Returns the SVG card, or "" on parse error.
 #[wasm_bindgen]
-pub fn render_card(reading_json: &str) -> Result<String, JsValue> {
-    let reading = deserialize_reading(reading_json).map_err(|e| JsValue::from_str(&e))?;
-    Ok(card::render(&reading))
+pub fn render_card(reading_json: &str) -> String {
+    let reading = match deserialize_reading(reading_json) {
+        Some(r) => r,
+        None => return "err: bad reading".into(),
+    };
+    card::render(&reading)
 }
 
-fn serialize_reading(r: &Reading) -> Result<String, String> {
-    crate::json::serialize(&reading_to_value(r)).ok_or_else(|| "serialize".into())
+fn serialize_reading(r: &Reading) -> String {
+    crate::json::serialize(&reading_to_value(r))
 }
 
-fn deserialize_reading(s: &str) -> Result<Reading, String> {
-    value_to_reading(&crate::json::parse(s).map_err(|e| format!("{e}"))?)
-        .ok_or_else(|| "bad reading shape".into())
+fn deserialize_reading(s: &str) -> Option<Reading> {
+    let v = crate::json::parse(s).ok()?;
+    value_to_reading(&v)
 }
 
 // Minimal ad-hoc (de)serialization for Reading — keeps the public
@@ -100,6 +106,7 @@ fn value_to_reading(v: &crate::json::Value) -> Option<Reading> {
     let days_since = get("daysSinceAnyPush").and_then(|v| v.as_i64()).map(|d| d as u32);
     let mut entries = Vec::new();
     if let Some(Value::Array(arr)) = get("entries") {
+        let now = crate::time::Utc::now();
         for e in arr {
             if let Value::Object(p) = e {
                 let name = p.iter().find(|(k,_)|*k=="name").and_then(|(_,v)|v.as_str()).unwrap_or("").to_string();
@@ -108,16 +115,16 @@ fn value_to_reading(v: &crate::json::Value) -> Option<Reading> {
                 let stars = p.iter().find(|(k,_)|*k=="stars").and_then(|(_,v)|v.as_i64()).unwrap_or(0) as u64;
                 let stillborn = p.iter().find(|(k,_)|*k=="stillborn").and_then(|(_,v)|v.as_bool()).unwrap_or(false);
                 let fate = match p.iter().find(|(k,_)|*k=="fate").and_then(|(_,v)|v.as_str()) {
-                    Some("alive") => crate::metrics::Fate::Alive,
-                    Some("cooling") => crate::metrics::Fate::Cooling,
-                    Some("cold") => crate::metrics::Fate::Cold,
-                    Some("buried") => crate::metrics::Fate::Buried,
-                    _ => crate::metrics::Fate::Dead,
+                    Some("alive") => Fate::Alive,
+                    Some("cooling") => Fate::Cooling,
+                    Some("cold") => Fate::Cold,
+                    Some("buried") => Fate::Buried,
+                    _ => Fate::Dead,
                 };
                 entries.push(crate::metrics::Corpse {
                     name, url, days_idle, stars, fate, stillborn,
-                    created_at: crate::time::Utc::now(),
-                    last_activity: crate::time::Utc::now(),
+                    created_at: now,
+                    last_activity: now,
                 });
             }
         }

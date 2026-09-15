@@ -1,6 +1,7 @@
 //! GitHub REST surface: `Repo` data, the native HTTP client, and path
 //! validation. `Repo` is wasm-safe; the client is cfg-gated to native.
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod client;
 pub mod routes;
 

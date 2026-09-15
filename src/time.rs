@@ -7,16 +7,43 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(inline_js = "export function __necrometer_now() { return Math.floor(Date.now() / 1000); }")]
+extern "C" {
+    fn __necrometer_now() -> f64;
+}
+
+#[cfg(target_arch = "wasm32")]
+fn wasm_clock_secs() -> Option<i64> {
+    Some(__necrometer_now() as i64)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Utc(pub i64);
 
 impl Utc {
     pub fn now() -> Self {
-        let secs = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
-        Utc(secs)
+        // SystemTime is unavailable on wasm32; fall back to JS Date if a
+        // clock was registered, otherwise 0 (the caller decides what to
+        // do with "born at the epoch" repos).
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(secs) = wasm_clock_secs() {
+                return Utc(secs);
+            }
+            return Utc(0);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let secs = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(0);
+            Utc(secs)
+        }
     }
 
     /// Parse a subset of RFC 3339: `YYYY-MM-DDTHH:MM:SS[Z|±HH:MM]`.
