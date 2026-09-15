@@ -1,6 +1,6 @@
 [package]
 name = "necrometer"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "The Necrometer — measures how dead your GitHub repos are. Embeddable necrosis gauges for READMEs."
 license = "MIT"
@@ -8,32 +8,32 @@ license = "MIT"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[package.metadata.wasm-pack.profile.release]
-# wasm-pack's bundled wasm-opt predates bulk-memory ops rustc emits — skip it.
-wasm-opt = false
+[[bin]]
+name = "necrometer"
+path = "src/main.rs"
+required-features = []
 
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
+# -- Features --
+# `serve` enables the web server subcommand. The default release tarball
+# builds without `serve` (card + hall only); the container image builds
+# with `--features serve`.
+[features]
+default = []
+serve = []
+
+# -- Dependencies: zero in the common section. --
+# Every crate that used to live here is now hand-rolled under std.
+# See src/{error,time,json,http,http_server,escape}.rs.
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", features = ["full", "signal"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-anyhow = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-axum = "0.8"
-maud = "0.26"
-mimalloc = "0.1.52"
+# TLS for the native HTTPS client. rustls (no OpenSSL) keeps the musl
+# binary statically linked; webpki-roots bundles CA certs so we don't
+# depend on the system trust store.
+rustls = { version = "0.23", default-features = false, features = ["std", "logging", "tls12"] }
+webpki-roots = "0.26"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
-chrono = { version = "0.4", features = ["wasmbind"] }
-
-[dev-dependencies]
-tower = { version = "0.5", features = ["util"] }
-tempfile = "3"
 
 [profile.release]
 opt-level = 3

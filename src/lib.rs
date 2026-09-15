@@ -1,17 +1,30 @@
-//! Necrometer core — GitHub necro-metrics, SVG gauge rendering, and the web service.
-//! metrics/card compile to wasm for the site; github/web are native-only.
+//! Necrometer core: GitHub necro-metrics, SVG gauge rendering, and
+//! the web service. `metrics` and `card` compile to wasm; `github`
+//! and `web` are native-only.
 
 pub mod card;
-pub mod github; // Repo is wasm-safe; the reqwest client is cfg-gated inside
+pub mod error;
+pub mod escape;
+pub mod github;
+pub mod json;
 pub mod metrics;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm;
+pub mod time;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod http;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod http_server;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub mod web;
 
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
+
+// Re-export the most common items at the crate root for ergonomics.
+pub use metrics::{analyze, Fate, Reading, SubjectKind};
+pub use card::render;
 #[cfg(not(target_arch = "wasm32"))]
-pub fn init_tracing() {
-    use tracing_subscriber::{fmt, EnvFilter};
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    fmt().with_env_filter(filter).init();
-}
+pub use github::client::{FetchError, GitHub};
+#[cfg(not(target_arch = "wasm32"))]
+pub use github::Repo;
