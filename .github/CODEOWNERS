@@ -1,0 +1,7 @@
+# CODEOWNERS — every file in this repo requires review from @UberMetroid
+# (the sole maintainer). Add co-maintainers here as they come on.
+* @UberMetroid
+/src/ @UberMetroid
+/.github/ @UberMetroid
+/container/ @UberMetroid
+/deny.toml @UberMetroid

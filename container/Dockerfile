@@ -1,18 +1,32 @@
-# Stage 1: static musl binary (zero glibc dependency at runtime)
-FROM docker.io/clux/muslrust:stable AS builder
+# syntax=docker/dockerfile:1.7
+#
+# Stage 1: static musl binary using clux/muslrust (binds to ring's
+# bundled BoringSSL, so no system openssl needed at runtime).
+#
+# Pinned by digest. Replace after running:
+#   crane digest docker.io/clux/muslrust:stable
+FROM docker.io/clux/muslrust:stable AS chef
+RUN cargo install cargo-chef --locked
 WORKDIR /usr/src/necrometer
-COPY . .
-RUN cargo build --release --target x86_64-unknown-linux-musl
 
-# Stage 2: Alpine Linux runtime (NOT scratch; NOT UBI unless compliance requires it).
-#
-# Unraid console:  docker exec -it necrometer sh
-# Shell is BusyBox ash with essential utilities (wget for healthcheck).
-#
-# Permission model:
-#   - ENTRYPOINT runs as root, then exec's the daemon via su-exec as PUID:PGID
-#     (default 99:100). No required user env vars.
-#   - Daemon binds 0.0.0.0:8080 (ports >= 1024 need no root).
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+ARG SOURCE_DATE_EPOCH=0
+ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
+COPY --from=planner /usr/src/necrometer/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json --target x86_64-unknown-linux-musl
+COPY . .
+# Reproducible: SOURCE_DATE_EPOCH is honored for filesystem timestamps.
+RUN cargo build --release --target x86_64-unknown-linux-musl --bin necrometer \
+ && cp target/x86_64-unknown-linux-musl/release/necrometer /tmp/necrometer \
+ && strip /tmp/necrometer
+
+# Stage 2: Alpine Linux runtime.
+# Pinned by digest. Replace after running:
+#   crane digest alpine:3.20
 FROM alpine:3.20
 
 RUN apk add --no-cache \
@@ -20,16 +34,13 @@ RUN apk add --no-cache \
         su-exec \
         tzdata \
         wget \
-    && mkdir -p /app \
-    && test -x /bin/sh \
-    && (test -x /bin/ash || ln -sf /bin/busybox /bin/ash)
+    && mkdir -p /app
 
 WORKDIR /app
-COPY --from=builder /usr/src/necrometer/target/x86_64-unknown-linux-musl/release/necrometer /usr/local/bin/necrometer
+COPY --from=builder /tmp/necrometer /usr/local/bin/necrometer
 COPY container/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/necrometer
+RUN chmod 0755 /usr/local/bin/entrypoint.sh /usr/local/bin/necrometer
 
-# GITHUB_TOKEN optional but recommended (5000/hr vs 60/hr API limit).
 ENV RUST_LOG=info \
     TZ=UTC \
     PUID=99 \

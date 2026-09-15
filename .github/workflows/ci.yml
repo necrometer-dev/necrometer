@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+permissions: { contents: read }
+
+jobs:
+  fmt-clippy-test:
+    name: fmt + clippy + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --lib
+      # Rebuild the wasm once and smoke-test that analyze_repos returns a
+      # non-empty reading + render_card returns a valid SVG. If the JS clock
+      # import breaks again this will catch it.
+      - run: |
+          curl --proto '=https' --tlsv1.2 --silent --show-error --location \
+            https://rustwasm.github.io/wasm-pack/installer/init.sh -o /tmp/wi
+          bash /tmp/wi
+      - run: wasm-pack build --release --target web --out-dir pkg
+      - run: node -e 'const w=require("./pkg/necrometer.js");const fs=require("fs");w.initSync({module:fs.readFileSync("./pkg/necrometer_bg.wasm")});const r=w.analyze_repos("ci",JSON.stringify([{name:"alive",pushed_at:"2024-09-01T00:00:00Z",created_at:"2023-01-01T00:00:00Z",archived:false,fork:false,stargazers_count:5,html_url:"x"}]));if(!r.startsWith("{"))throw new Error("bad reading: "+r);const s=w.render_card(r);if(!s.startsWith("<svg"))throw new Error("bad svg");console.log("ok reading="+r.length+" svg="+s.length);'
+
+  musl:
+    name: musl static build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: cargo build --release --target x86_64-unknown-linux-musl --bin necrometer
+      - run: ls -la target/x86_64-unknown-linux-musl/release/necrometer
