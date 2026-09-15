@@ -1,4 +1,4 @@
-# Contributing to necrometer
+# Contributing to Seance
 
 Thanks for your interest. The project is small and the constraints are
 deliberate; please read this before opening a PR.
@@ -40,18 +40,18 @@ deny.toml      # cargo-deny policy
 
 ```sh
 # native CLI
-cargo build --release --bin necrometer
-./target/release/necrometer card torvalds torvalds.svg
+cargo build --release --bin seance
+./target/release/seance card torvalds torvalds.svg
 
 # web server (default Docker target)
-cargo build --release --bin necrometer --features serve
-./target/release/necrometer serve --bind 0.0.0.0:8080
+cargo build --release --bin seance --features serve
+./target/release/seance serve --bind 0.0.0.0:8080
 
 # wasm (output goes to pkg/)
 wasm-pack build --release --target web --out-dir pkg
 
 # musl static binary (used by the Action)
-cargo build --release --target x86_64-unknown-linux-musl --bin necrometer
+cargo build --release --target x86_64-unknown-linux-musl --bin seance
 ```
 
 ## Testing
@@ -69,7 +69,7 @@ plus a wasm smoke test. Local reproduction:
 
 ```sh
 wasm-pack build --release --target web --out-dir pkg
-node -e 'const w=require("./pkg/necrometer.js");const fs=require("fs");w.initSync({module:fs.readFileSync("./pkg/necrometer_bg.wasm")});const r=w.analyze_repos("ci",JSON.stringify([{name:"alive",pushed_at:"2024-09-01T00:00:00Z",created_at:"2023-01-01T00:00:00Z",archived:false,fork:false,stargazers_count:5,html_url:"x"}]));console.log(r.length,r.startsWith("{"));'
+node -e 'const w=require("./pkg/seance.js");const fs=require("fs");w.initSync({module:fs.readFileSync("./pkg/seance_bg.wasm")});const r=w.analyze_repos("ci",JSON.stringify([{name:"alive",pushed_at:"2024-09-01T00:00:00Z",created_at:"2023-01-01T00:00:00Z",archived:false,fork:false,stargazers_count:5,html_url:"x"}]));console.log(r.length,r.startsWith("{"));'
 ```
 
 ## Bumping the version

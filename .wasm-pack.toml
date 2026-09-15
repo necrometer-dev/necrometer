@@ -1,0 +1,9 @@
+[package]
+# Seance engine — powers the Necrometer card. The JS imports will be
+# `import init, { analyze_repos, render_card } from './pkg/seance.js'`.
+name = "seance"
+
+[build]
+# wasm-pack 0.13.1's bundled wasm-opt predates bulk-memory ops rustc
+# emits — skip it.
+# Also specified in Cargo.toml under [package.metadata.wasm-pack.profile.release].

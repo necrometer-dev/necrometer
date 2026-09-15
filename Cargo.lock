@@ -54,15 +54,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
-name = "necrometer"
-version = "0.4.1"
-dependencies = [
- "rustls",
- "wasm-bindgen",
- "webpki-roots 0.26.11",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -140,6 +131,15 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "seance"
+version = "0.4.2"
+dependencies = [
+ "rustls",
+ "wasm-bindgen",
+ "webpki-roots 0.26.11",
+]
 
 [[package]]
 name = "shlex"

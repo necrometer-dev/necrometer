@@ -21,12 +21,12 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist
-          cp target/x86_64-unknown-linux-musl/release/necrometer dist/
+          cp target/x86_64-unknown-linux-musl/release/seance dist/
           cd dist
-          tar czf necrometer-x86_64-unknown-linux-musl.tar.gz necrometer
-          sha256sum necrometer-x86_64-unknown-linux-musl.tar.gz > SHA256SUMS
+          tar czf seance-x86_64-unknown-linux-musl.tar.gz seance
+          sha256sum seance-x86_64-unknown-linux-musl.tar.gz > SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/necrometer-x86_64-unknown-linux-musl.tar.gz
+            dist/seance-x86_64-unknown-linux-musl.tar.gz
             dist/SHA256SUMS

@@ -5,6 +5,7 @@
 //! no formatting, no calendars. Hand-rolled — std::time::SystemTime is
 //! the only clock.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(target_arch = "wasm32")]

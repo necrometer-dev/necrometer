@@ -6,10 +6,10 @@
 
 use std::time::Duration;
 
-use necrometer::error::{Error, Result};
-use necrometer::escape::esc_text;
-use necrometer::github::routes::{is_valid_subject, validate_out_path, SubjectKind};
-use necrometer::metrics::{analyze, Fate};
+use seance::error::{Error, Result};
+use seance::escape::esc_text;
+use seance::github::routes::{is_valid_subject, validate_out_path, SubjectKind};
+use seance::metrics::{analyze, Fate};
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         Some("serve") => serve_cmd(),
         None => serve_cmd(),
         Some(other) => Err(Error::Other(format!(
-            "unknown command '{other}' — serve | card <name> [out.svg] | hall <names> [out.json]"
+            "unknown command '{other}' — seance serve | seance card <name> [out.svg] | seance hall <names> [out.json]"
         ))),
     }
 }
@@ -42,25 +42,25 @@ fn serve_cmd() -> Result<()> {
             eprintln!("WARN no GITHUB_TOKEN — unauthenticated API limit is 60/hr");
         }
         eprintln!("INFO  listening on {bind}");
-        necrometer::web::run(&bind)
+        seance::web::run(&bind)
     }
 }
 
 fn card_cmd(args: &[String]) -> Result<()> {
     let name = args
         .first()
-        .ok_or_else(|| Error::Other("usage: necrometer card <user-or-org> [out.svg]".into()))?;
+        .ok_or_else(|| Error::Other("usage: seance card <user-or-org> [out.svg]".into()))?;
     if !is_valid_subject(name) {
         return Err(Error::Other(format!("invalid subject {name:?}")));
     }
     let out = args.get(1).map(String::as_str).unwrap_or("necrometer.svg");
     validate_out_path(out)?;
-    let gh = necrometer::github::client::GitHub::new()?;
+    let gh = seance::github::client::GitHub::new()?;
     let repos = gh
         .resolve_repos(name)
         .map_err(|e| Error::Other(format!("{e}")))?;
     let reading = analyze(name, SubjectKind::User, &repos);
-    std::fs::write(out, necrometer::render(&reading))?;
+    std::fs::write(out, seance::render(&reading))?;
     eprintln!(
         "{}: {}% necrotic ({}) — wrote {out}",
         esc_text(&reading.subject),
@@ -73,7 +73,7 @@ fn card_cmd(args: &[String]) -> Result<()> {
 fn hall_cmd(args: &[String]) -> Result<()> {
     let path = args
         .first()
-        .ok_or_else(|| Error::Other("usage: necrometer hall <names-file> [out.json]".into()))?;
+        .ok_or_else(|| Error::Other("usage: seance hall <names-file> [out.json]".into()))?;
     let out = args.get(1).map(String::as_str).unwrap_or("hall.json");
     let names: Vec<String> = std::fs::read_to_string(path)?
         .lines()
@@ -81,7 +81,7 @@ fn hall_cmd(args: &[String]) -> Result<()> {
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .map(String::from)
         .collect();
-    let gh = necrometer::github::client::GitHub::new()?;
+    let gh = seance::github::client::GitHub::new()?;
     let mut hall: Vec<HallEntry> = Vec::new();
     for name in &names {
         match gh.resolve_repos(name) {

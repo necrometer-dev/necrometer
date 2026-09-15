@@ -5,11 +5,11 @@
 Only the latest minor release receives security fixes. Older versions
 get best-effort backports if the fix is small.
 
-| Version | Supported          |
-|---------|--------------------|
-| v0.3.x  | :white_check_mark: |
-| v0.2.x  | :x:                |
-| < v0.2  | :x:                |
+| Version   | Supported          |
+|-----------|--------------------|
+| v0.4.x    | :white_check_mark: |
+| v0.3.x    | :x:                |
+| < v0.3    | :x:                |
 
 ## Reporting
 
@@ -18,7 +18,7 @@ public issue for a security bug.
 
 ## Threat model
 
-The daemon (`necrometer serve`):
+The daemon (`seance serve`):
 
 - Reads public GitHub repo metadata via `api.github.com`.
 - Serves SVG / JSON / HTML over HTTP/1.1.

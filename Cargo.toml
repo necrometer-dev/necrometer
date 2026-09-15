@@ -1,19 +1,20 @@
 [package]
-name = "necrometer"
-version = "0.4.1"
+name = "seance"
+version = "0.4.2"
 edition = "2021"
-description = "The Necrometer — measures how dead your GitHub repos are. Embeddable necrosis gauges for READMEs."
+description = "The Seance engine — what powers the Necrometer card. Measures how dead your GitHub repos are and renders an embeddable necrosis gauge."
 license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+name = "seance"
 
 [package.metadata.wasm-pack.profile.release]
 # wasm-pack's bundled wasm-opt predates bulk-memory ops rustc emits — skip it.
 wasm-opt = false
 
 [[bin]]
-name = "necrometer"
+name = "seance"
 path = "src/main.rs"
 required-features = []
 
