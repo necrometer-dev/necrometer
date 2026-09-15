@@ -9,8 +9,10 @@ deliberate; please read this before opening a PR.
    `rustls` + `webpki-roots`. The wasm build links only `wasm-bindgen`.
    Anything else must be hand-rolled under `src/`. Adding a runtime dep
    is a breaking change and needs a one-line justification.
-2. **256-line-per-file ceiling.** Every file under `src/` must be ≤256
-   lines (including tests). Split by concept; don't grow monoliths.
+2. **256-line-per-file ceiling.** Every *authored* file is ≤256 lines
+   (Rust, JS, HTML, YAML, Markdown, shell — tests included). Split by
+   concept; don't grow monoliths. Exempt: generated `pkg/`, lockfiles,
+   `hall.json`, binary/font/wasm assets. `ci/check-lines.sh` enforces it.
 3. **Zero-trust / first principles.** Don't trust the network, the
    filesystem, the env, the input. Validate at every boundary.
 4. **No clever macros, no global statics.** `format!` is fine; proc
@@ -25,7 +27,7 @@ src/
   github/      # repo model + native HTTP client
   web/         # HTTP/1.1 server (gated on `--features serve`)
   json/        # recursive-descent JSON parser + Value
-  http.rs      # rustls blocking client
+  http/        # rustls blocking client + HTTP/1.1 parse
   http_server.rs
   time.rs      # SystemTime + RFC3339 (native) / Date.now() (wasm)
   escape.rs    # esc_text / is_valid_subject / is_safe_out_path

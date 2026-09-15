@@ -98,10 +98,12 @@ fn hall_cmd(args: &[String]) -> Result<()> {
             }
             Err(e) => {
                 eprintln!("{name}: skipped — {e}");
-                std::process::exit(2);
             }
         }
         std::thread::sleep(Duration::from_millis(250));
+    }
+    if hall.is_empty() {
+        return Err(Error::Other("hall: every name failed".into()));
     }
     hall.sort_by(|a, b| b.index.cmp(&a.index).then(b.corpses.cmp(&a.corpses)));
     let mut json = String::from("[");

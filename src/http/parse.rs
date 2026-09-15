@@ -1,67 +1,9 @@
-//! Blocking HTTPS client over rustls. Replaces reqwest.
-//!
-//! What we need: GET a URL, get the status, body, and any `Link:`
-//! header. That's it. No streaming, no POST, no cookies, no compression
-//! (GitHub responses are small enough).
+//! HTTP/1.1 response + URL parsing for the rustls client.
 
-use std::io::{Read, Write};
-use std::net::TcpStream;
-use std::sync::Arc;
-
-use rustls::pki_types::ServerName;
-use rustls::ClientConfig;
-
+use super::Response;
 use crate::error::{Error, Result};
 
-pub struct Response {
-    pub status: u16,
-    pub body: String,
-    /// `Link: <url>; rel="next"` — the next page URL, if any.
-    pub next: Option<String>,
-}
-
-pub struct Client {
-    cfg: Arc<ClientConfig>,
-    user_agent: String,
-}
-
-impl Client {
-    pub fn new() -> Result<Self> {
-        let roots = webpki_roots::TLS_SERVER_ROOTS.iter().cloned();
-        let cfg = ClientConfig::builder()
-            .with_root_certificates(rustls::RootCertStore::from_iter(roots))
-            .with_no_client_auth();
-        Ok(Self {
-            cfg: Arc::new(cfg),
-            user_agent: "necrometer/0.4 (https://necrometer.dev)".into(),
-        })
-    }
-
-    pub fn get(&self, url: &str, bearer: Option<&str>) -> Result<Response> {
-        let (host, port, path) = parse_url(url)?;
-        let server_name =
-            ServerName::try_from(host.clone()).map_err(|e| Error::Tls(format!("dns name: {e}")))?;
-        let conn = rustls::ClientConnection::new(self.cfg.clone(), server_name)
-            .map_err(|e| Error::Tls(format!("handshake setup: {e}")))?;
-        let mut sock = TcpStream::connect((host.as_str(), port))?;
-        let mut conn = conn;
-        let mut tls = rustls::Stream::new(&mut conn, &mut sock);
-        let mut req = format!(
-            "GET {path} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: {}\r\nAccept: application/vnd.github+json\r\nConnection: close\r\n",
-            self.user_agent
-        );
-        if let Some(tok) = bearer {
-            req.push_str(&format!("Authorization: Bearer {tok}\r\n"));
-        }
-        req.push_str("\r\n");
-        tls.write_all(req.as_bytes())?;
-        let mut raw = Vec::new();
-        tls.read_to_end(&mut raw)?;
-        parse_response(&raw)
-    }
-}
-
-fn parse_response(raw: &[u8]) -> Result<Response> {
+pub(super) fn parse_response(raw: &[u8]) -> Result<Response> {
     let split = find_subslice(raw, b"\r\n\r\n")
         .ok_or_else(|| Error::Http("no header terminator".into()))?;
     let head = &raw[..split];
@@ -84,7 +26,6 @@ fn parse_response(raw: &[u8]) -> Result<Response> {
     let mut content_length: Option<usize> = None;
     for line in lines {
         if let Some(rest) = line.strip_prefix("Link:") {
-            // <url>; rel="next"
             let s = rest.trim();
             if let Some(url) = s.split(';').next() {
                 let url = url.trim().trim_matches('<').trim_matches('>');
@@ -135,25 +76,19 @@ fn dechunk(body: &[u8]) -> Result<Vec<u8>> {
         i += size;
         if i + 2 <= body.len() {
             i += 2;
-        } // trailing \r\n
+        }
     }
     Ok(out)
 }
 
-fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
+pub(super) fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || hay.len() < needle.len() {
         return None;
     }
-    for i in 0..=hay.len() - needle.len() {
-        if &hay[i..i + needle.len()] == needle {
-            return Some(i);
-        }
-    }
-    None
+    hay.windows(needle.len()).position(|w| w == needle)
 }
 
-/// Split a URL into host / port / path. Handles `https://host[:port]/path?q`.
-fn parse_url(url: &str) -> Result<(String, u16, String)> {
+pub(super) fn parse_url(url: &str) -> Result<(String, u16, String)> {
     let rest = url
         .strip_prefix("https://")
         .ok_or_else(|| Error::Http("only https supported".into()))?;
@@ -173,6 +108,34 @@ fn parse_url(url: &str) -> Result<(String, u16, String)> {
     Ok((host.to_string(), port, path.to_string()))
 }
 
+pub(super) fn response_complete(raw: &[u8]) -> bool {
+    let Some(split) = find_subslice(raw, b"\r\n\r\n") else {
+        return false;
+    };
+    let head = &raw[..split];
+    let body = &raw[split + 4..];
+    let Ok(head_str) = std::str::from_utf8(head) else {
+        return false;
+    };
+    let mut chunked = false;
+    let mut len: Option<usize> = None;
+    for line in head_str.split("\r\n").skip(1) {
+        if let Some(rest) = line.strip_prefix("Transfer-Encoding:") {
+            chunked = rest.trim().eq_ignore_ascii_case("chunked");
+        } else if let Some(rest) = line.strip_prefix("Content-Length:") {
+            len = rest.trim().parse().ok();
+        }
+    }
+    if chunked {
+        return find_subslice(body, b"0\r\n\r\n").is_some()
+            || find_subslice(body, b"0\n\n").is_some();
+    }
+    match len {
+        Some(n) => body.len() >= n,
+        None => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,5 +146,16 @@ mod tests {
         assert_eq!(h, "api.github.com");
         assert_eq!(p, 443);
         assert_eq!(pa, "/users/foo/repos?per_page=100");
+    }
+
+    #[test]
+    fn complete_on_content_length() {
+        let raw = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}";
+        assert!(response_complete(raw));
+        let short = b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n{}";
+        assert!(!response_complete(short));
+        let r = parse_response(raw).unwrap();
+        assert_eq!(r.status, 200);
+        assert_eq!(r.body, "{}");
     }
 }
